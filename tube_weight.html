@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tube Weight Estimator | Engineering Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f12;
+      --surface:   #13161b;
+      --border:    #1f2530;
+      --accent:    #f0a500;
+      --accent2:   #e05c00;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --pass:      #22c55e;
+      --warn:      #ef4444;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 80px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(240,165,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(240,165,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    /* ── Header ── */
+    header {
+      margin-bottom: 48px;
+      border-left: 3px solid var(--accent);
+      padding-left: 20px;
+    }
+
+    .label-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 7vw, 60px);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    header h1 span { color: var(--accent); }
+
+    header p {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 520px;
+      font-weight: 300;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 36px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+    }
+
+    .card-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    /* ── Grid ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 520px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .card { padding: 24px; }
+    }
+
+    /* ── Form Fields ── */
+    .field { display: flex; flex-direction: column; gap: 8px; }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 15px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(240,165,0,0.08);
+    }
+
+    .field input::placeholder { color: #3a4050; }
+
+    .unit {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.05em;
+      margin-top: -4px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── Button ── */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      color: #0d0f12;
+      border: none;
+      border-radius: 2px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+
+    .btn:hover { background: #ffc22a; }
+    .btn:active { transform: scale(0.99); }
+
+    /* ── Results ── */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 4px;
+    }
+
+    .result-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .result-block.highlight {
+      border-color: var(--accent);
+    }
+
+    .result-block::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .result-block.highlight::after { opacity: 1; }
+
+    .result-label {
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .result-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+      transition: all 0.3s;
+    }
+
+    .result-value.large {
+      font-size: 34px;
+    }
+
+    .result-unit {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 4px;
+    }
+
+    /* ── Formula note ── */
+    .formula-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 20px 24px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.9;
+    }
+
+    .formula-box span { color: var(--accent); }
+
+    /* ── Error ── */
+    .error-msg {
+      color: var(--warn);
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 8px;
+      display: none;
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 48px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.05em;
+      text-align: center;
+      line-height: 2;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* ── Animate in ── */
+    .animate-in {
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .animate-in:nth-child(2) { animation-delay: 0.08s; }
+    .animate-in:nth-child(3) { animation-delay: 0.16s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Pulse on result update ── */
+    @keyframes pulse {
+      0%   { color: #fff; }
+      100% { color: var(--accent); }
+    }
+
+    .pulse { animation: pulse 0.4s ease; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header class="animate-in">
+    <div class="label-tag">// Engineering Tool · 01</div>
+    <h1>Tube Weight<br><span>Estimator</span></h1>
+    <p>Calculates the weight of a hollow or solid cylindrical tube based on outer diameter, wall thickness, length, and material. Commonly used in driveshaft, halfshaft, and structural tube design.</p>
+  </header>
+
+  <!-- Inputs -->
+  <div class="card animate-in">
+    <div class="card-title">// 01 · Inputs</div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label>Outer Diameter</label>
+        <input type="number" id="od" placeholder="e.g. 90" min="0.1" step="any"/>
+        <span class="unit">mm</span>
+      </div>
+      <div class="field">
+        <label>Wall Thickness</label>
+        <input type="number" id="wt" placeholder="e.g. 3.5" min="0" step="any"/>
+        <span class="unit">mm · enter 0 for solid bar</span>
+      </div>
+      <div class="field">
+        <label>Length</label>
+        <input type="number" id="len" placeholder="e.g. 1200" min="0.1" step="any"/>
+        <span class="unit">mm</span>
+      </div>
+      <div class="field">
+        <label>Material</label>
+        <select id="mat">
+          <option value="7.85">Steel (7.85 g/cm³)</option>
+          <option value="2.71">Aluminium (2.71 g/cm³)</option>
+          <option value="4.43">Titanium (4.43 g/cm³)</option>
+          <option value="7.20">Cast Iron (7.20 g/cm³)</option>
+          <option value="8.90">Copper (8.90 g/cm³)</option>
+          <option value="custom">Custom density…</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Custom density field -->
+    <div class="field" id="custom-density-field" style="margin-top:20px; display:none;">
+      <label>Custom Density</label>
+      <input type="number" id="custom-density" placeholder="e.g. 7.75" min="0.1" step="any"/>
+      <span class="unit">g/cm³</span>
+    </div>
+
+    <p class="error-msg" id="err">⚠ Wall thickness cannot be greater than half the outer diameter.</p>
+
+    <hr class="divider"/>
+    <button class="btn" onclick="calculate()">CALCULATE WEIGHT</button>
+  </div>
+
+  <!-- Results -->
+  <div class="card animate-in" id="results-card" style="display:none;">
+    <div class="card-title">// 02 · Results</div>
+
+    <div class="results-grid">
+      <div class="result-block">
+        <div class="result-label">Inner Diameter</div>
+        <div class="result-value" id="res-id">—</div>
+        <div class="result-unit">mm</div>
+      </div>
+      <div class="result-block">
+        <div class="result-label">Cross-Section Area</div>
+        <div class="result-value" id="res-area">—</div>
+        <div class="result-unit">mm²</div>
+      </div>
+      <div class="result-block">
+        <div class="result-label">Volume</div>
+        <div class="result-value" id="res-vol">—</div>
+        <div class="result-unit">cm³</div>
+      </div>
+      <div class="result-block highlight">
+        <div class="result-label">Weight</div>
+        <div class="result-value large" id="res-kg">—</div>
+        <div class="result-unit">kg</div>
+      </div>
+      <div class="result-block">
+        <div class="result-label">Weight</div>
+        <div class="result-value" id="res-g">—</div>
+        <div class="result-unit">grams</div>
+      </div>
+      <div class="result-block">
+        <div class="result-label">Weight / mm length</div>
+        <div class="result-value" id="res-permm">—</div>
+        <div class="result-unit">g/mm</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formula Reference -->
+  <div class="card animate-in">
+    <div class="card-title">// 03 · Formula Reference</div>
+    <div class="formula-box">
+      <span>ID</span>           = OD − (2 × Wall Thickness)<br>
+      <span>Area</span>         = π/4 × (OD² − ID²)<br>
+      <span>Volume</span>       = Area × Length<br>
+      <span>Weight (g)</span>   = Volume (cm³) × Density (g/cm³)<br>
+      <span>Weight (kg)</span>  = Weight (g) / 1000<br><br>
+      Standard material densities used per ASM Handbook.
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    TUBE WEIGHT ESTIMATOR · ENGINEERING TOOLS PORTFOLIO<br>
+    Built by [Your Name] · Driveline Product Development Engineer<br>
+    <a href="https://github.com/yourusername/engineering-calculators">github.com/yourusername/engineering-calculators</a>
+  </footer>
+
+</div>
+
+<script>
+  // Show/hide custom density field
+  document.getElementById('mat').addEventListener('change', function() {
+    const customField = document.getElementById('custom-density-field');
+    customField.style.display = this.value === 'custom' ? 'block' : 'none';
+  });
+
+  function getDensity() {
+    const matSelect = document.getElementById('mat');
+    if (matSelect.value === 'custom') {
+      const val = parseFloat(document.getElementById('custom-density').value);
+      return isNaN(val) ? null : val;
+    }
+    return parseFloat(matSelect.value);
+  }
+
+  function calculate() {
+    const od  = parseFloat(document.getElementById('od').value);
+    const wt  = parseFloat(document.getElementById('wt').value);
+    const len = parseFloat(document.getElementById('len').value);
+    const den = getDensity();
+    const err = document.getElementById('err');
+
+    // Validation
+    if (isNaN(od) || isNaN(wt) || isNaN(len) || !den ||
+        od <= 0 || wt < 0 || len <= 0) {
+      err.style.display = 'none';
+      alert('Please fill in all fields with valid positive numbers.');
+      return;
+    }
+
+    if (wt >= od / 2) {
+      err.style.display = 'block';
+      document.getElementById('results-card').style.display = 'none';
+      return;
+    }
+
+    err.style.display = 'none';
+
+    // Calculations
+    const id      = od - 2 * wt;                          // mm
+    const area    = (Math.PI / 4) * (od * od - id * id);  // mm²
+    const volMM3  = area * len;                            // mm³
+    const volCM3  = volMM3 / 1000;                        // cm³
+    const weightG = volCM3 * den;                          // grams
+    const weightKg = weightG / 1000;                       // kg
+    const perMM   = weightG / len;                         // g/mm
+
+    // Display
+    function fmt(val, dec) {
+      return val.toLocaleString('en-US', {
+        minimumFractionDigits: dec,
+        maximumFractionDigits: dec
+      });
+    }
+
+    document.getElementById('res-id').textContent    = fmt(id, 2);
+    document.getElementById('res-area').textContent  = fmt(area, 2);
+    document.getElementById('res-vol').textContent   = fmt(volCM3, 3);
+    document.getElementById('res-kg').textContent    = fmt(weightKg, 3);
+    document.getElementById('res-g').textContent     = fmt(weightG, 1);
+    document.getElementById('res-permm').textContent = fmt(perMM, 4);
+
+    // Show results with animation
+    const card = document.getElementById('results-card');
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Pulse animation on main result
+    const mainVal = document.getElementById('res-kg');
+    mainVal.classList.remove('pulse');
+    void mainVal.offsetWidth;
+    mainVal.classList.add('pulse');
+  }
+
+  // Allow Enter key to trigger calculate
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') calculate();
+  });
+</script>
+</body>
+</html>
