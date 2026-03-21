@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Involute Spline Table Calculator | Engineering Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0a0c0f;
+      --surface: #111318;
+      --surf2:   #161920;
+      --border:  #1e2330;
+      --accent:  #f0a500;
+      --accent2: #e05c00;
+      --text:    #e8eaf0;
+      --muted:   #5a6278;
+      --muted2:  #3a4055;
+      --pass:    #22c55e;
+      --fail:    #ef4444;
+      --warn:    #f59e0b;
+      --pa375:   #38bdf8;
+      --pa45:    #a78bfa;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh; padding: 48px 16px 100px; overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(240,165,0,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(240,165,0,0.022) 1px, transparent 1px);
+      background-size: 44px 44px; pointer-events: none; z-index: 0;
+    }
+    .wrapper { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; }
+
+    /* Header */
+    header { margin-bottom: 48px; border-left: 3px solid var(--accent); padding-left: 20px; }
+    .label-tag { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; margin-bottom:8px; }
+    header h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(34px,6vw,58px); letter-spacing:.04em; line-height:1; color:var(--text); }
+    header h1 span { color:var(--accent); }
+    header p { margin-top:12px; font-size:13px; color:var(--muted); line-height:1.65; max-width:640px; font-weight:300; }
+    .standard-badge {
+      display:inline-flex; align-items:center; gap:8px; margin-top:14px;
+      background:var(--surface); border:1px solid var(--border);
+      padding:6px 14px; border-radius:2px;
+      font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.14em;
+      color:var(--muted); text-transform:uppercase; flex-wrap:wrap;
+    }
+    .standard-badge span { color:var(--accent); }
+
+    /* Card */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:32px; margin-bottom:20px; position:relative; overflow:hidden; }
+    .card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,var(--accent),var(--accent2),transparent); }
+    .card-title { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.2em; color:var(--accent); text-transform:uppercase; margin-bottom:24px; }
+
+    /* Input section labels */
+    .isec {
+      font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.2em;
+      text-transform:uppercase; color:var(--muted2);
+      margin-bottom:14px; margin-top:26px;
+      padding-bottom:8px; border-bottom:1px solid var(--border);
+    }
+    .isec:first-of-type { margin-top:0; }
+
+    /* Grid */
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+    @media(max-width:700px){ .grid-4 { grid-template-columns:1fr 1fr; } }
+    @media(max-width:440px){ .grid-2,.grid-4 { grid-template-columns:1fr; } }
+
+    /* Fields */
+    .field { display:flex; flex-direction:column; gap:7px; }
+    .field label { font-size:10px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+    .field input,.field select {
+      background:var(--bg); border:1px solid var(--border); border-radius:2px;
+      color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:14px;
+      padding:11px 13px; outline:none; transition:border-color .2s,box-shadow .2s;
+      appearance:none; -webkit-appearance:none;
+    }
+    .field input:focus,.field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(240,165,0,.07); }
+    .field input::placeholder { color:var(--muted2); }
+    .unit { font-size:10px; color:var(--muted); font-family:'IBM Plex Mono',monospace; margin-top:-3px; }
+    .fnote { font-size:10px; color:var(--muted2); font-family:'IBM Plex Mono',monospace; margin-top:-3px; line-height:1.6; }
+
+    /* Lever hint box */
+    .lever-hint {
+      background:rgba(240,165,0,.04); border:1px solid rgba(240,165,0,.14);
+      border-radius:2px; padding:14px 18px; margin-top:18px;
+    }
+    .lever-hint-title { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+    .lever-hint p { font-size:12px; color:var(--muted); line-height:1.75; font-weight:300; }
+
+    /* Fixed params strip */
+    .fixed-params { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
+    .fixed-tag { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--muted); background:var(--bg); border:1px solid var(--border); padding:5px 12px; border-radius:2px; }
+    .fixed-tag strong { color:var(--accent); }
+
+    /* Allowables */
+    .allowables { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+    .allow-block { background:var(--bg); border:1px solid var(--border); padding:12px 16px; border-radius:2px; flex:1; min-width:130px; }
+    .allow-label { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+    .allow-val { font-family:'IBM Plex Mono',monospace; font-size:16px; color:var(--warn); }
+
+    /* Button */
+    .btn { width:100%; padding:15px; background:var(--accent); color:#0a0c0f; border:none; border-radius:2px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:.12em; cursor:pointer; transition:background .2s,transform .1s; margin-top:8px; }
+    .btn:hover { background:#ffc22a; }
+    .btn:active { transform:scale(.99); }
+
+    /* Results table */
+    #results-card { display:none; }
+    .results-table { width:100%; border-collapse:collapse; margin-top:4px; }
+    .results-table th { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.15em; text-transform:uppercase; padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); color:var(--muted); }
+    .results-table th.pa-375 { color:var(--pa375); }
+    .results-table th.pa-45  { color:var(--pa45); }
+    .results-table td { padding:9px 12px; border-bottom:1px solid rgba(30,35,48,.6); font-family:'IBM Plex Mono',monospace; font-size:13px; vertical-align:middle; }
+    .results-table tr:hover td { background:rgba(255,255,255,.015); }
+    .results-table td.pname { color:var(--text); font-size:12px; font-family:'IBM Plex Sans',sans-serif; font-weight:500; line-height:1.4; }
+    .results-table td.fref  { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted2); letter-spacing:.04em; line-height:1.7; }
+    .results-table td.v375  { color:var(--pa375); }
+    .results-table td.v45   { color:var(--pa45); }
+    .section-row td { background:var(--surf2)!important; font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent)!important; padding:8px 12px; border-bottom:1px solid var(--border)!important; }
+
+    /* Badges */
+    .badge { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.1em; padding:2px 7px; border-radius:2px; font-weight:500; }
+    .badge.pass { background:rgba(34,197,94,.12); color:var(--pass); border:1px solid rgba(34,197,94,.25); }
+    .badge.fail { background:rgba(239,68,68,.12); color:var(--fail); border:1px solid rgba(239,68,68,.25); }
+    .badge.warn { background:rgba(245,158,11,.12); color:var(--warn); border:1px solid rgba(245,158,11,.25); }
+    .sval { display:flex; flex-direction:column; gap:4px; }
+
+    /* Formula legend */
+    .fl-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:4px; }
+    @media(max-width:600px){ .fl-grid { grid-template-columns:1fr; } }
+    .fb { background:var(--bg); border:1px solid var(--border); border-radius:2px; padding:16px; }
+    .fb-t { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+    .fl  { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); line-height:2.0; }
+    .fl span { color:var(--text); }
+
+    .ref-list { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); line-height:2.2; }
+
+    hr { border:none; border-top:1px solid var(--border); margin:24px 0; }
+
+    .fade-in { animation:fadeUp .45s ease both; }
+    .fade-in:nth-child(2){ animation-delay:.07s; }
+    .fade-in:nth-child(3){ animation-delay:.14s; }
+    .fade-in:nth-child(4){ animation-delay:.21s; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+
+    footer { margin-top:56px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.06em; text-align:center; line-height:2; }
+    footer a { color:var(--accent); text-decoration:none; }
+
+    @media(max-width:600px){
+      .card { padding:20px; }
+      .results-table td,.results-table th { padding:8px 6px; font-size:11px; }
+      .results-table td.fref { display:none; }
+    }
+
+    /* Export buttons */
+    .export-row {
+      display:flex; gap:12px; margin-top:20px; padding-top:20px;
+      border-top:1px solid var(--border); flex-wrap:wrap;
+    }
+    .btn-export {
+      flex:1; min-width:180px; padding:13px 20px;
+      border:1px solid var(--border); border-radius:2px;
+      background:var(--bg); color:var(--text);
+      font-family:'Bebas Neue',sans-serif; font-size:17px;
+      letter-spacing:.1em; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      transition:border-color .2s, background .2s;
+    }
+    .btn-export:hover { border-color:var(--accent); background:rgba(240,165,0,.06); }
+    .btn-export .exp-icon { font-size:18px; }
+    .btn-export .exp-sub {
+      font-family:'IBM Plex Mono',monospace; font-size:9px;
+      letter-spacing:.1em; color:var(--muted); font-weight:400;
+      display:block; margin-top:2px; text-transform:uppercase;
+    }
+    .btn-export-pdf  { border-color:rgba(239,68,68,.3); }
+    .btn-export-pdf:hover  { border-color:#ef4444; }
+    .btn-export-xlsx { border-color:rgba(34,197,94,.3); }
+    .btn-export-xlsx:hover { border-color:#22c55e; }
+
+    /* ── Print / PDF styles ── */
+    @media print {
+      * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      body {
+        background:#fff !important; color:#111 !important;
+        padding:10mm 12mm; font-family:'IBM Plex Sans',sans-serif;
+      }
+      body::before { display:none; }
+      .no-print { display:none !important; }
+      header { border-left:3px solid #f0a500; margin-bottom:18px; }
+      header h1 { font-size:28px; color:#111; }
+      header h1 span { color:#f0a500; }
+      header p, .standard-badge { color:#444; font-size:11px; }
+      .standard-badge { background:#f5f5f5; border-color:#ddd; }
+      .card {
+        background:#fff !important; border:1px solid #ddd !important;
+        padding:14px; margin-bottom:12px; break-inside:avoid;
+      }
+      .card::before { background:#f0a500 !important; }
+      .card-title { color:#f0a500 !important; font-size:9px; }
+      .isec { color:#888; border-color:#eee; }
+      .field label { color:#555; }
+      .field input, .field select {
+        background:#f9f9f9 !important; border-color:#ccc !important;
+        color:#111 !important; font-size:12px; padding:6px 8px;
+      }
+      .unit, .fnote { color:#888; }
+      .lever-hint { background:#fffbf0 !important; border-color:#f0a500 !important; }
+      .lever-hint p { color:#444; }
+      .fixed-tag { background:#f5f5f5; border-color:#ddd; color:#555; }
+      .fixed-tag strong { color:#e06000; }
+      .allow-block { background:#f9f9f9; border-color:#ddd; }
+      .allow-val { color:#d97706 !important; }
+      .btn, .export-row { display:none !important; }
+      .results-table th { color:#555 !important; background:#f5f5f5 !important; font-size:9px; padding:6px 8px; }
+      .results-table th.pa-375 { color:#0369a1 !important; }
+      .results-table th.pa-45  { color:#7c3aed !important; }
+      .results-table td { font-size:11px !important; padding:6px 8px !important; color:#111 !important; border-color:#e5e5e5 !important; }
+      .results-table td.pname { color:#111 !important; }
+      .results-table td.fref  { color:#888 !important; font-size:8px !important; }
+      .results-table td.v375  { color:#0369a1 !important; }
+      .results-table td.v45   { color:#7c3aed !important; }
+      .section-row td { background:#f0f0f0 !important; color:#c05000 !important; font-size:8px !important; }
+      .badge.pass { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+      .badge.fail { background:#fee2e2 !important; color:#dc2626 !important; border-color:#fca5a5 !important; }
+      .badge.warn { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
+      .fl-grid, .ref-list { break-inside:avoid; }
+      .fb { background:#f9f9f9 !important; border-color:#ddd !important; }
+      .fb-t { color:#c05000 !important; }
+      .fl  { color:#444 !important; }
+      .fl span { color:#111 !important; }
+      .ref-list { color:#555 !important; }
+      footer { color:#888 !important; border-top:1px solid #ddd; margin-top:14px; font-size:9px; }
+      footer a { color:#f0a500 !important; }
+      .print-header {
+        display:block !important;
+        font-family:'IBM Plex Mono',monospace; font-size:9px;
+        color:#888; text-align:right; margin-bottom:6px;
+        border-bottom:1px solid #eee; padding-bottom:4px;
+      }
+    }
+    .print-header { display:none; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- Print header (visible only when printing) -->
+<div class="print-header" id="print-header">
+  INVOLUTE SPLINE TABLE CALCULATOR · Built by Alex · ANSI B92.1-1996 · Shigley's MED 10th Ed.
+</div>
+
+<!-- Header -->
+<header class="fade-in">
+  <div class="label-tag">// Engineering Tool · 02</div>
+  <h1>Involute Spline<br><span>Table Calculator</span></h1>
+  <p>Generates a complete spline design table for both 37.5° and 45° pressure angles from design
+  yield torque, module, engagement length, and fit class. Calculates all tooth geometry, stress
+  checks, and torsional stiffness. All formulas sourced from publicly available engineering
+  standards and textbooks.</p>
+  <div class="standard-badge">
+    Standard: <span>ANSI B92.1-1996</span> &nbsp;|&nbsp;
+    Ref: <span>Shigley's MED 10th Ed. · Norton 5th Ed.</span> &nbsp;|&nbsp;
+    Tooth Form: <span>Involute · Full-Fillet Root</span>
+  </div>
+</header>
+
+<!-- Inputs -->
+<div class="card fade-in">
+  <div class="card-title">// 01 · Design Inputs</div>
+
+  <div class="isec">▸ OEM-Defined Parameters (typically fixed)</div>
+  <div class="grid-2">
+    <div class="field">
+      <label>Design Yield Torque T</label>
+      <input type="number" id="torque" placeholder="e.g. 5000" min="1" step="any"/>
+      <span class="unit">Nm</span>
+    </div>
+    <div class="field">
+      <label>Engagement Length L</label>
+      <input type="number" id="engagement" placeholder="e.g. 16" min="1" step="any"/>
+      <span class="unit">mm</span>
+    </div>
+  </div>
+
+  <div class="isec">▸ Design Levers (engineer-controlled — adjust to meet stress targets)</div>
+  <div class="grid-4">
+    <div class="field">
+      <label>Module m</label>
+      <input type="number" id="module_val" placeholder="e.g. 1.0" min="0.1" step="0.25" value="1.0"/>
+      <span class="unit">mm/tooth</span>
+      <span class="fnote">↑ bigger teeth → fewer N<br>↓ finer teeth → lower Sc/St</span>
+    </div>
+    <div class="field">
+      <label>N Override (optional)</label>
+      <input type="number" id="n_override" placeholder="leave blank = auto" min="6" step="1"/>
+      <span class="unit">teeth (whole number)</span>
+      <span class="fnote">Must be ≥ N_calc min.<br>More teeth → lower Sc &amp; St</span>
+    </div>
+    <div class="field">
+      <label>Spline Class</label>
+      <select id="spline_class">
+        <option value="4">Class 4H — Precision (ground)</option>
+        <option value="5" selected>Class 5H — Standard (hobbed)</option>
+        <option value="6">Class 6H — Medium clearance</option>
+        <option value="7">Class 7H — Free / slip fit</option>
+      </select>
+      <span class="unit">ANSI B92.1 · changes t_min → St</span>
+      <span class="fnote">Tighter class → thicker t_min<br>→ lower St shear stress</span>
+    </div>
+    <div class="field">
+      <label>Si Allowable</label>
+      <input type="number" id="si_allow" placeholder="140000" value="140000" min="1" step="1000"/>
+      <span class="unit">psi</span>
+      <span class="fnote">↑ harder material / HT<br>→ smaller N_calc possible</span>
+    </div>
+  </div>
+
+  <div class="lever-hint">
+    <div class="lever-hint-title">// Design Strategy — When T and L Are Fixed by OEM</div>
+    <p>
+      <strong style="color:var(--text)">Module m</strong> — most powerful lever. Larger m grows tooth size, reducing N and redistributing all stresses. Smaller m gives more, finer teeth, lowering Sc and St directly.&nbsp;&nbsp;
+      <strong style="color:var(--text)">N Override</strong> — add teeth above the calculated minimum; load spreads across more contact area, reducing Sc and St proportionally.&nbsp;&nbsp;
+      <strong style="color:var(--text)">Class</strong> — tighter class (4H) increases t_min and reduces St. Useful when St is marginal and geometry cannot change.&nbsp;&nbsp;
+      <strong style="color:var(--text)">Si allowable</strong> — reflects material and heat treatment; raising it reduces N_calc, yielding a more compact design.
+    </p>
+  </div>
+
+  <div class="fixed-params">
+    <div class="fixed-tag">Tooth Form: <strong>Involute · Full-Fillet Root</strong></div>
+    <div class="fixed-tag">PA Calculated: <strong>37.5° &amp; 45° simultaneously</strong></div>
+    <div class="fixed-tag">Shear Modulus G: <strong>80,000 N/mm² (steel)</strong></div>
+  </div>
+
+  <div class="allowables">
+    <div class="allow-block">
+      <div class="allow-label">Si — Shaft Shear Allowable</div>
+      <div class="allow-val" id="si_display">140.0 Ksi</div>
+      <div class="allow-label" style="margin-top:4px">User-defined above · ANSI B92.1</div>
+    </div>
+    <div class="allow-block">
+      <div class="allow-label">Sc — Compressive Allowable</div>
+      <div class="allow-val">85 Ksi</div>
+      <div class="allow-label" style="margin-top:4px">ANSI B92.1 · Table 6</div>
+    </div>
+    <div class="allow-block">
+      <div class="allow-label">St — Tooth Shear Allowable</div>
+      <div class="allow-val">50 Ksi</div>
+      <div class="allow-label" style="margin-top:4px">ANSI B92.1 · Table 6</div>
+    </div>
+  </div>
+
+  <hr/>
+  <button class="btn" onclick="calculate()">GENERATE SPLINE TABLE</button>
+  <p id="err-msg" style="color:#ef4444;font-family:'IBM Plex Mono',monospace;font-size:11px;margin-top:10px;display:none;"></p>
+</div>
+
+<!-- Results -->
+<div class="card" id="results-card">
+  <div class="card-title" id="results-title">// 02 · Spline Design Table</div>
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th style="width:28%">Parameter</th>
+        <th style="width:28%">Formula Reference</th>
+        <th class="pa-375" style="width:22%">37.5° PA (0.6545 rad)</th>
+        <th class="pa-45"  style="width:22%">45.0° PA (0.7854 rad)</th>
+      </tr>
+    </thead>
+    <tbody id="results-body"></tbody>
+  </table>
+
+  <!-- Export buttons -->
+  <div class="export-row no-print">
+    <button class="btn-export btn-export-pdf" onclick="exportPDF()">
+      <span class="exp-icon">📄</span>
+      <span>
+        SAVE AS PDF
+        <span class="exp-sub">Full page · inputs + table + formulas</span>
+      </span>
+    </button>
+    <button class="btn-export btn-export-xlsx" onclick="exportExcel()">
+      <span class="exp-icon">📊</span>
+      <span>
+        EXPORT TO EXCEL
+        <span class="exp-sub">Drawing dimensions only · for supplier</span>
+      </span>
+    </button>
+  </div>
+</div>
+
+<!-- Formula Legend -->
+<div class="card fade-in">
+  <div class="card-title">// 03 · Formula Reference Legend</div>
+  <div class="fl-grid">
+    <div class="fb">
+      <div class="fb-t">Unit Conversions</div>
+      <div class="fl">T<sub>lb·in</sub> = <span>T<sub>Nm</sub> × 8.8507</span></div>
+      <div class="fl">Pd = <span>25.4 / m</span></div>
+      <div class="fl">dim<sub>in</sub> = <span>dim<sub>mm</sub> / 25.4</span></div>
+    </div>
+    <div class="fb">
+      <div class="fb-t">Number of Teeth · Shigley's §12 · ANSI B92.1</div>
+      <div class="fl">d<sub>min</sub> = <span>∛(16T / (π × Si<sub>allow</sub>))</span></div>
+      <div class="fl">N<sub>calc</sub> = <span>(d<sub>min</sub> + 2b) / m</span></div>
+      <div class="fl">N<sub>nom</sub> = <span>max(⌈N<sub>calc</sub>⌉, N<sub>override</sub>)</span></div>
+    </div>
+    <div class="fb">
+      <div class="fb-t">Geometry · ANSI B92.1-1996 Table 1</div>
+      <div class="fl">D = <span>N × m</span></div>
+      <div class="fl">Db = <span>D × cos(PA)</span></div>
+      <div class="fl">D<sub>major</sub> = <span>D + 2a</span></div>
+      <div class="fl">D<sub>minor</sub> = <span>D − 2b</span></div>
+      <div class="fl">37.5°: a=0.45m · b=0.795m · h=0.885m</div>
+      <div class="fl">45°:   a=0.40m · b=0.670m · h=0.790m</div>
+    </div>
+    <div class="fb">
+      <div class="fb-t">Tooth Thickness · ANSI B92.1 §5 · Table 3</div>
+      <div class="fl">t<sub>max</sub> = <span>π × m / 2</span></div>
+      <div class="fl">Class 4H: δt = <span>0.035 × m</span></div>
+      <div class="fl">Class 5H: δt = <span>0.057 × m</span></div>
+      <div class="fl">Class 6H: δt = <span>0.090 × m</span></div>
+      <div class="fl">Class 7H: δt = <span>0.145 × m</span></div>
+      <div class="fl">t<sub>min</sub> = <span>t<sub>max</sub> − δt</span></div>
+    </div>
+    <div class="fb">
+      <div class="fb-t">Stress Checks · ANSI B92.1 §6</div>
+      <div class="fl">Si = <span>16T / (π × D<sub>minor</sub>³)</span> [psi]</div>
+      <div class="fl">Sc = <span>2T / (D × N × h × L)</span> [psi]</div>
+      <div class="fl">St = <span>2T / (D × N × t<sub>min</sub> × L)</span> [psi]</div>
+      <div class="fl" style="margin-top:6px;font-size:10px;color:var(--muted2)">All: T in lb·in · dims in inches</div>
+    </div>
+    <div class="fb">
+      <div class="fb-t">Torsional Stiffness · Shigley's §4-3</div>
+      <div class="fl">J = <span>π/32 × D<sub>minor</sub>⁴</span> [mm⁴]</div>
+      <div class="fl">K<sub>rad</sub> = <span>G × J / L</span> [Nm/rad]</div>
+      <div class="fl">K<sub>deg</sub> = <span>K<sub>rad</sub> / 57.296</span> [Nm/deg]</div>
+      <div class="fl" style="margin-top:4px;font-size:10px;color:var(--muted2)">G=80,000 N/mm² · approx. at D<sub>minor</sub></div>
+    </div>
+  </div>
+</div>
+
+<!-- References -->
+<div class="card fade-in">
+  <div class="card-title">// 04 · Standards &amp; Textbook References</div>
+  <div class="ref-list">
+    [1] &nbsp;ANSI B92.1-1996 — Involute Splines and Inspection (ASME/ANSI)<br>
+    [2] &nbsp;Budynas &amp; Nisbett — Shigley's Mechanical Engineering Design, 10th Ed., §4, §12<br>
+    [3] &nbsp;Norton, R.L. — Machine Design: An Integrated Approach, 5th Ed., §14<br>
+    [4] &nbsp;Spotts, Shoup &amp; Hornberger — Design of Machine Elements, 8th Ed.<br>
+    [5] &nbsp;AGMA 6123 — Design Manual for Enclosed Epicyclic Metric Module Gear Drives<br>
+    [6] &nbsp;Tooth proportions (a, b, h) — ANSI B92.1-1996 Table 1, Full-Fillet Root profile<br>
+    [7] &nbsp;Class tolerance δt — ANSI B92.1-1996 Table 3, Space Width Tolerances
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  INVOLUTE SPLINE TABLE CALCULATOR · ENGINEERING TOOLS PORTFOLIO<br>
+  Built by Alex<br>
+  Formulas: ANSI B92.1-1996 · Shigley's MED 10th Ed. · Norton Machine Design 5th Ed.<br>
+  <a href="https://github.com/yourusername/engineering-calculators">github.com/yourusername/engineering-calculators</a>
+</footer>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  INVOLUTE SPLINE TABLE CALCULATOR
+//  Sources: ANSI B92.1-1996 | Shigley's MED 10th Ed. | Norton 5th Ed.
+// ════════════════════════════════════════════════════════════
+
+const ALLOW = { Si: 140000, Sc: 85000, St: 50000 };
+
+// Tooth proportions per ANSI B92.1-1996, Table 1, Full-Fillet Root
+const PROPS = {
+  37.5: { a:0.45,  b:0.795, h:0.885 },
+  45.0: { a:0.40,  b:0.670, h:0.790 }
+};
+
+// δt per ANSI B92.1-1996, Table 3 (multiplied by m to scale with module)
+const CLASS_TOL = { 4:0.035, 5:0.057, 6:0.090, 7:0.145 };
+const CLASS_LBL = {
+  4:'Class 4H — Precision (ground)',
+  5:'Class 5H — Standard (hobbed)',
+  6:'Class 6H — Medium clearance',
+  7:'Class 7H — Free / slip fit'
+};
+
+// Live Si allowable display
+document.getElementById('si_allow').addEventListener('input', function(){
+  const v = parseFloat(this.value);
+  document.getElementById('si_display').textContent = isNaN(v) ? '—' : (v/1000).toFixed(1)+' Ksi';
+});
+
+function f(val, dec){
+  return val.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+
+function mmIn(mm, dm, di){
+  return `${f(mm,dm)} mm<br><span style="font-size:11px;color:var(--muted)">${f(mm/25.4,di)} in</span>`;
+}
+
+function stressBadge(val, allow){
+  const pct = ((val/allow)*100).toFixed(1);
+  if(val <= allow*0.95)
+    return `<div class="sval"><span>${f(val,0)} psi</span><span class="badge pass">PASS · ${pct}% of allow.</span></div>`;
+  if(val <= allow)
+    return `<div class="sval"><span>${f(val,0)} psi</span><span class="badge warn">MARGINAL · ${pct}%</span></div>`;
+  return `<div class="sval"><span>${f(val,0)} psi</span><span class="badge fail">EXCEEDS · ${pct}%</span></div>`;
+}
+
+function row(name, ref, v1, v2){
+  return `<tr>
+    <td class="pname">${name}</td>
+    <td class="fref">${ref}</td>
+    <td class="v375">${v1}</td>
+    <td class="v45">${v2}</td>
+  </tr>`;
+}
+function sec(t){
+  return `<tr class="section-row"><td colspan="4">// ${t}</td></tr>`;
+}
+
+function calculate(){
+  const T_Nm     = parseFloat(document.getElementById('torque').value);
+  const m        = parseFloat(document.getElementById('module_val').value);
+  const L_mm     = parseFloat(document.getElementById('engagement').value);
+  const Si_allow = parseFloat(document.getElementById('si_allow').value);
+  const cls      = parseInt(document.getElementById('spline_class').value);
+  const n_ov_raw = document.getElementById('n_override').value.trim();
+  const n_ov     = n_ov_raw === '' ? null : parseInt(n_ov_raw);
+  const errEl    = document.getElementById('err-msg');
+
+  // Validate
+  if(isNaN(T_Nm)||isNaN(m)||isNaN(L_mm)||isNaN(Si_allow)||T_Nm<=0||m<=0||L_mm<=0||Si_allow<=0){
+    errEl.textContent='⚠ Enter valid positive values for Torque, Module, Engagement Length, and Si Allowable.';
+    errEl.style.display='block';
+    document.getElementById('results-card').style.display='none';
+    return;
+  }
+  if(n_ov!==null&&(isNaN(n_ov)||n_ov<6)){
+    errEl.textContent='⚠ N Override must be a whole number ≥ 6, or leave blank for automatic.';
+    errEl.style.display='block'; return;
+  }
+  errEl.style.display='none';
+
+  // Unit conversions
+  const T_lbin = T_Nm * 8.8507;       // lb·in
+  const Pd     = 25.4 / m;            // teeth/in
+  const L_in   = L_mm / 25.4;         // in
+  const G      = 80000;               // N/mm²
+
+  // Min shaft diameter (Shigley's §4-1 Eq.4-2)
+  const d_min_in = Math.cbrt((16*T_lbin)/(Math.PI*Si_allow));
+  const d_min_mm = d_min_in * 25.4;
+
+  // Tooth thickness (ANSI B92.1 §5, Table 3)
+  const delta_t  = CLASS_TOL[cls] * m;
+  const t_max    = (Math.PI * m) / 2;
+  const t_min    = t_max - delta_t;
+  const t_min_in = t_min / 25.4;
+  const t_max_in = t_max / 25.4;
+
+  // Per-PA calculations
+  const res = {};
+  [37.5, 45.0].forEach(PA_deg => {
+    const p      = PROPS[PA_deg];
+    const PA_rad = PA_deg * Math.PI / 180;
+
+    // N_calc ensures D_minor ≥ d_min (ANSI B92.1 §6.2)
+    const N_calc = (d_min_mm + 2*p.b*m) / m;
+    const N_auto = Math.ceil(N_calc);
+    const N_nom  = (n_ov !== null && n_ov >= N_auto) ? n_ov : N_auto;
+    const N_src  = (n_ov !== null && n_ov >= N_auto) ? 'Override' : 'Auto (min)';
+
+    // Geometry (ANSI B92.1 Table 1)
+    const D_mm    = N_nom * m;
+    const D_in    = N_nom / Pd;
+    const Db_mm   = D_mm * Math.cos(PA_rad);
+    const Dmaj_mm = D_mm + 2*p.a*m;
+    const Dmin_mm = D_mm - 2*p.b*m;
+    const Dmin_in = Dmin_mm / 25.4;
+    const h_mm    = p.h * m;
+    const h_in    = h_mm / 25.4;
+    const D_bar   = Dmaj_mm + 1.0;
+
+    // Stresses (ANSI B92.1 §6; psi; dims in inches)
+    const Si     = (16*T_lbin) / (Math.PI * Math.pow(Dmin_in,3));
+    const Sc     = (2*T_lbin)  / (D_in * N_nom * h_in    * L_in);
+    const St     = (2*T_lbin)  / (D_in * N_nom * t_min_in * L_in);
+    const St_tor = (16*T_lbin) / (Math.PI * Math.pow(Dmin_in,3));
+
+    // Stiffness (Shigley's §4-3 Eq.4-5)
+    const J     = (Math.PI/32) * Math.pow(Dmin_mm,4);  // mm⁴
+    const K_rad = (G * J) / L_mm / 1000;               // Nm/rad
+    const K_deg = K_rad / (180/Math.PI);               // Nm/deg
+
+    res[PA_deg] = {
+      N_calc, N_nom, N_src,
+      D_mm, D_in, Db_mm, Dmaj_mm, Dmin_mm, Dmin_in,
+      h_mm, h_in, D_bar,
+      Si, Sc, St, St_tor,
+      J, K_rad, K_deg,
+      a: p.a*m, b: p.b*m
+    };
+  });
+
+  const r1=res[37.5], r2=res[45.0];
+  let html='';
+
+  // Inputs summary
+  html += sec('Design Inputs Summary');
+  html += row('T — Design Yield Torque','Input (OEM-defined)',
+    `${f(T_Nm,0)} Nm · ${f(T_lbin,0)} lb·in`, `${f(T_Nm,0)} Nm · ${f(T_lbin,0)} lb·in`);
+  html += row('L — Engagement Length','Input (OEM-defined)',
+    `${f(L_mm,2)} mm · ${f(L_in,5)} in`, `${f(L_mm,2)} mm · ${f(L_in,5)} in`);
+  html += row('m · Pd · Class · Si<sub>allow</sub>','Engineer-controlled levers',
+    `m=${f(m,2)} mm · Pd=${f(Pd,3)} teeth/in<br>${CLASS_LBL[cls]}<br>Si<sub>allow</sub>=${f(Si_allow/1000,1)} Ksi`,
+    `same`);
+
+  // Min shaft dia
+  html += sec('Min Shaft Diameter from Si Allowable · Shigley\'s §4-1 Eq.4-2');
+  html += row('d<sub>min</sub> — Min shaft Ø at Si<sub>allow</sub>',
+    '∛(16T/(π×Si<sub>allow</sub>))<br>Shigley\'s §4-1 · same for both PA',
+    mmIn(d_min_mm,4,6), mmIn(d_min_mm,4,6));
+
+  // Teeth
+  html += sec('Number of Teeth · ANSI B92.1 §6.2');
+  html += row('N<sub>calc</sub> — Calculated Minimum',
+    '(d<sub>min</sub>+2b)/m<br>ensures D<sub>minor</sub> ≥ d<sub>min</sub>',
+    f(r1.N_calc,4), f(r2.N_calc,4));
+  html += row('N<sub>nom</sub> — Nominal Teeth Used',
+    n_ov ? `Override applied: ${n_ov}` : '⌈N<sub>calc</sub>⌉ rounded up<br>ANSI B92.1 §6.2',
+    `<strong style="font-size:17px">${r1.N_nom}</strong> <span class="badge ${r1.N_src==='Override'?'warn':'pass'}" style="margin-left:4px">${r1.N_src}</span>`,
+    `<strong style="font-size:17px">${r2.N_nom}</strong> <span class="badge ${r2.N_src==='Override'?'warn':'pass'}" style="margin-left:4px">${r2.N_src}</span>`);
+
+  // Geometry
+  html += sec('Spline Geometry · ANSI B92.1-1996 Table 1 · Full-Fillet Root');
+  html += row('D — Pitch Diameter',    'D=N×m · ANSI B92.1 §3.1',                                       mmIn(r1.D_mm,4,6),   mmIn(r2.D_mm,4,6));
+  html += row('Db — Base Diameter',    'Db=D×cos(PA) · ANSI B92.1 §3.2',                                mmIn(r1.Db_mm,4,7),  mmIn(r2.Db_mm,4,7));
+  html += row('a — Addendum',          'a: 0.45m (37.5°) / 0.40m (45°)<br>ANSI B92.1 Table 1',          `${f(r1.a,4)} mm`,   `${f(r2.a,4)} mm`);
+  html += row('b — Dedendum',          'b: 0.795m (37.5°) / 0.670m (45°)<br>ANSI B92.1 Table 1',         `${f(r1.b,4)} mm`,   `${f(r2.b,4)} mm`);
+  html += row('D<sub>major</sub> — Major Dia. (Max)', 'D+2a · ANSI B92.1 §3.3',                         `${f(r1.Dmaj_mm,3)} mm`, `${f(r2.Dmaj_mm,3)} mm`);
+  html += row('D<sub>minor</sub> — Minor Dia. (Min)', 'D−2b · ANSI B92.1 §3.4<br>⚠ weakest section — drives Si &amp; St<sub>tors</sub>', mmIn(r1.Dmin_mm,3,5), mmIn(r2.Dmin_mm,3,5));
+  html += row('h — Active Tooth Height','h≈2a−clearance · ANSI B92.1 §3.5<br>Load-carrying height → used in Sc', mmIn(r1.h_mm,4,5), mmIn(r2.h_mm,4,5));
+  html += row('D<sub>barstock</sub> — Est. Min Bar Stock','D<sub>major</sub>+1.0mm<br>ANSI B92.1 §7.1 (approx.)', `${f(r1.D_bar,2)} mm`, `${f(r2.D_bar,2)} mm`);
+
+  // Tooth thickness
+  html += sec(`Tooth Thickness · ${CLASS_LBL[cls]} · ANSI B92.1-1996 Table 3`);
+  html += row('t<sub>max</sub> — Max Effective Thickness',
+    'π×m/2 · ANSI B92.1 §5.1<br>Basic circular pitch/2 · same both PA',
+    `${f(t_max,4)} mm · ${f(t_max_in,6)} in`, `${f(t_max,4)} mm · ${f(t_max_in,6)} in`);
+  html += row('δt — Class Tolerance',
+    `${CLASS_TOL[cls]}×m · ANSI B92.1 Table 3<br>Class ${cls}H space width tolerance`,
+    `${f(delta_t,4)} mm`, `${f(delta_t,4)} mm`);
+  html += row('t<sub>min</sub> — Min Actual Thickness',
+    't<sub>max</sub>−δt · ANSI B92.1 §5.2<br>Worst case → used in St shear check',
+    `${f(t_min,4)} mm · ${f(t_min_in,6)} in`, `${f(t_min,4)} mm · ${f(t_min_in,6)} in`);
+
+  // Stresses
+  html += sec(`Stress Results · psi · dims in inches · T in lb·in · ANSI B92.1 §6`);
+  html += row(
+    `Si — IC Shaft Shear<br><span style="font-size:10px;color:var(--muted)">Allow: ${f(ALLOW.Si,0)} psi</span>`,
+    '16T/(π×D<sub>minor</sub>³)<br>Shigley\'s §4-1 Eq.4-2 · ANSI B92.1 §6.2',
+    stressBadge(r1.Si, ALLOW.Si), stressBadge(r2.Si, ALLOW.Si));
+  html += row(
+    `Sc — Compressive<br><span style="font-size:10px;color:var(--muted)">Allow: ${f(ALLOW.Sc,0)} psi</span>`,
+    '2T/(D×N×h×L)<br>ANSI B92.1 §6.3 · Norton §14-3',
+    stressBadge(r1.Sc, ALLOW.Sc), stressBadge(r2.Sc, ALLOW.Sc));
+  html += row(
+    `St — Tooth Shear<br><span style="font-size:10px;color:var(--muted)">Allow: ${f(ALLOW.St,0)} psi</span>`,
+    '2T/(D×N×t<sub>min</sub>×L)<br>ANSI B92.1 §6.4 · Norton §14-3',
+    stressBadge(r1.St, ALLOW.St), stressBadge(r2.St, ALLOW.St));
+  html += row(
+    'St<sub>tors</sub> — Torsional<br><span style="font-size:10px;color:var(--muted)">(System-level check)</span>',
+    '16T/(π×D<sub>minor</sub>³)<br>Shigley\'s §4-1 · ANSI B92.1 §6.5',
+    `${f(r1.St_tor,0)} psi`, `${f(r2.St_tor,0)} psi`);
+
+  // Stiffness
+  html += sec('Torsional Stiffness · Approximate · Shigley\'s §4-3 Eq.4-5');
+  html += row('J — Polar Moment of Area',
+    'π/32×D<sub>minor</sub>⁴ · Shigley\'s §4-3<br>At minor Ø (minimum section)',
+    `${f(r1.J,1)} mm⁴`, `${f(r2.J,1)} mm⁴`);
+  html += row('K — Torsional Stiffness',
+    'G×J/L · G=80,000 N/mm² · Shigley\'s §4-3',
+    `${f(r1.K_rad,0)} Nm/rad<br><span style="font-size:11px;color:var(--muted)">${f(r1.K_deg,1)} Nm/deg</span>`,
+    `${f(r2.K_rad,0)} Nm/rad<br><span style="font-size:11px;color:var(--muted)">${f(r2.K_deg,1)} Nm/deg</span>`);
+
+  document.getElementById('results-body').innerHTML = html;
+  document.getElementById('results-title').textContent =
+    `// 02 · Spline Table  ·  T=${f(T_Nm,0)} Nm  ·  m=${f(m,2)}  ·  L=${f(L_mm,1)} mm  ·  ${CLASS_LBL[cls]}`;
+
+  const card = document.getElementById('results-card');
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  // Store for export functions
+  _lastCalc = {
+    T_Nm, m, L_mm, Si_allow, cls,
+    t_max, t_min, t_min_in, t_max_in, delta_t,
+    res
+  };
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Enter') calculate(); });
+
+// ── LAST CALCULATED VALUES (stored for export) ─────────────────────────────
+let _lastCalc = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PDF EXPORT — print the whole page with print stylesheet applied
+// ─────────────────────────────────────────────────────────────────────────────
+function exportPDF() {
+  if (document.getElementById('results-card').style.display === 'none') {
+    alert('Please generate the spline table first, then save as PDF.');
+    return;
+  }
+  // Update print header with current inputs
+  const T  = document.getElementById('torque').value;
+  const m  = document.getElementById('module_val').value;
+  const L  = document.getElementById('engagement').value;
+  const cl = document.getElementById('spline_class').options[document.getElementById('spline_class').selectedIndex].text;
+  document.getElementById('print-header').textContent =
+    `INVOLUTE SPLINE TABLE CALCULATOR  ·  T=${T} Nm  ·  m=${m}  ·  L=${L} mm  ·  ${cl}  ·  ANSI B92.1-1996  ·  Built by Alex`;
+  window.print();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  EXCEL EXPORT — drawing dimensions only, for supplier
+//  Contains: both PA columns, key geometry + stress status, inputs header
+// ─────────────────────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!_lastCalc) {
+    alert('Please generate the spline table first, then export to Excel.');
+    return;
+  }
+
+  const c = _lastCalc;
+  const r1 = c.res[37.5];
+  const r2 = c.res[45.0];
+  const CLS = { 4:'Class 4H', 5:'Class 5H', 6:'Class 6H', 7:'Class 7H' };
+
+  // Helper — round to n decimal places
+  const r = (v, n) => parseFloat(v.toFixed(n));
+  const stStr = (v, allow) => v <= allow ? 'PASS' : 'EXCEEDS';
+
+  // ── Sheet 1: Drawing Dimensions ──────────────────────────────────────────
+  const drawRows = [
+    // Title block
+    ['INVOLUTE SPLINE — DRAWING DIMENSIONS', '', '', ''],
+    ['Standard: ANSI B92.1-1996  |  Tooth Form: Involute, Full-Fillet Root  |  Built by Alex', '', '', ''],
+    ['', '', '', ''],
+
+    // Inputs header
+    ['DESIGN INPUTS', '', '', ''],
+    ['Design Yield Torque T', c.T_Nm + ' Nm', '', ''],
+    ['Module m',              c.m    + ' mm', '', ''],
+    ['Engagement Length L',   c.L_mm + ' mm', '', ''],
+    ['Spline Class',          CLS[c.cls],     '', ''],
+    ['Si Allowable',          (c.Si_allow/1000).toFixed(1) + ' Ksi', '', ''],
+    ['', '', '', ''],
+
+    // Column headers
+    ['PARAMETER', 'UNIT', '37.5° Pressure Angle', '45.0° Pressure Angle'],
+
+    // Geometry — the rows a supplier needs on a drawing
+    ['Number of Teeth N (nominal)',  '—',   r1.N_nom,                r2.N_nom],
+    ['Module m',                     'mm',  r(c.m, 3),               r(c.m, 3)],
+    ['Pressure Angle PA',            '°',   37.5,                    45.0],
+    ['Pitch Diameter D',             'mm',  r(r1.D_mm, 4),           r(r2.D_mm, 4)],
+    ['Base Diameter Db',             'mm',  r(r1.Db_mm, 4),          r(r2.Db_mm, 4)],
+    ['Major Diameter D_major (max)', 'mm',  r(r1.Dmaj_mm, 3),        r(r2.Dmaj_mm, 3)],
+    ['Minor Diameter D_minor (min)', 'mm',  r(r1.Dmin_mm, 3),        r(r2.Dmin_mm, 3)],
+    ['Active Tooth Height h',        'mm',  r(r1.h_mm, 4),           r(r2.h_mm, 4)],
+    ['t_max — Max Effective Tooth Thickness', 'mm', r(c.t_max, 4),   r(c.t_max, 4)],
+    ['delta_t — Class Tolerance',    'mm',  r(c.delta_t, 4),         r(c.delta_t, 4)],
+    ['t_min — Min Actual Tooth Thickness',   'mm', r(c.t_min, 4),    r(c.t_min, 4)],
+    ['Est. Min Bar Stock Diameter',  'mm',  r(r1.D_bar, 2),          r(r2.D_bar, 2)],
+    ['Engagement Length L',          'mm',  r(c.L_mm, 2),            r(c.L_mm, 2)],
+    ['', '', '', ''],
+
+    // Stress summary
+    ['STRESS CHECK SUMMARY', 'Allowable', '37.5° PA', '45.0° PA'],
+    ['Si — Shaft Shear Stress',    '140,000 psi', r(r1.Si,0)+' psi — '+stStr(r1.Si,140000), r(r2.Si,0)+' psi — '+stStr(r2.Si,140000)],
+    ['Sc — Compressive Stress',    ' 85,000 psi', r(r1.Sc,0)+' psi — '+stStr(r1.Sc,85000),  r(r2.Sc,0)+' psi — '+stStr(r2.Sc,85000)],
+    ['St — Tooth Shear Stress',    ' 50,000 psi', r(r1.St,0)+' psi — '+stStr(r1.St,50000),  r(r2.St,0)+' psi — '+stStr(r2.St,50000)],
+    ['', '', '', ''],
+
+    // Stiffness
+    ['TORSIONAL STIFFNESS (approx.)', '', '', ''],
+    ['K — Stiffness (Nm/rad)', 'Nm/rad', r(r1.K_rad,0), r(r2.K_rad,0)],
+    ['K — Stiffness (Nm/deg)', 'Nm/deg', r(r1.K_deg,1), r(r2.K_deg,1)],
+    ['', '', '', ''],
+    ['Formulas: ANSI B92.1-1996 | Shigley\'s MED 10th Ed. | Norton Machine Design 5th Ed.', '', '', ''],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(drawRows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 40 }, { wch: 14 }, { wch: 26 }, { wch: 26 }
+  ];
+
+  // Bold title rows
+  const boldCells = ['A1','A4','A11','A28','A33'];
+  boldCells.forEach(addr => {
+    if (ws[addr]) ws[addr].s = { font: { bold: true } };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Spline Drawing Dims');
+
+  // Filename with key params
+  const fname = `Spline_T${c.T_Nm}Nm_m${c.m}_L${c.L_mm}mm_${CLS[c.cls].replace(/\s/g,'')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+</script>
+</body>
+</html>
