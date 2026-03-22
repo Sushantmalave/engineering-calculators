@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B10 Weibull Life Calculator — Component Fatigue</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#0d0f12;--surface:#13171d;--card:#191e26;--border:#252c38;--border-hi:#2e3a4e;--amber:#f59e0b;--amber-dim:#3d2d08;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--purple:#a855f7;--text:#e2e8f0;--muted:#64748b;--label:#94a3b8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;min-height:100vh;}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 32px;display:flex;align-items:center;gap:16px;}
+.header-icon{width:40px;height:40px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.header-text h1{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;letter-spacing:.02em;}
+.header-text p{font-size:12px;color:var(--muted);margin-top:2px;}
+.badge{margin-left:auto;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:.08em;}
+.layout{display:grid;grid-template-columns:415px 1fr;min-height:calc(100vh - 81px);}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:24px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;}
+.results{padding:24px 28px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--amber);letter-spacing:.12em;text-transform:uppercase;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;color:var(--label);font-weight:500;display:flex;justify-content:space-between;align-items:center;}
+.field label span{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);background:var(--border);padding:1px 6px;border-radius:3px;}
+.field-hint{font-size:11px;color:var(--muted);line-height:1.4;}
+input[type="number"]{background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:14px;padding:9px 11px;width:100%;transition:border-color .15s;-moz-appearance:textfield;appearance:textfield;}
+input[type="number"]:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.12);}
+input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;}
+select{background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 11px;width:100%;cursor:pointer;transition:border-color .15s;}
+select:focus{outline:none;border-color:var(--amber);}
+.sample-grid{display:flex;flex-direction:column;gap:5px;}
+.sample-row{display:grid;grid-template-columns:20px 1fr 22px 22px;gap:5px;align-items:center;}
+.sample-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);text-align:right;}
+.sample-status{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s;flex-shrink:0;margin:0 auto;}
+.sample-status.failed{background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red);}
+.sample-status.suspended{background:rgba(100,116,139,.15);border-color:var(--muted);color:var(--muted);}
+.del-btn{width:20px;height:20px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.del-btn:hover{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.1);}
+.add-sample-btn{background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:7px;cursor:pointer;width:100%;transition:all .15s;text-align:center;}
+.add-sample-btn:hover{border-color:var(--amber);color:var(--amber);}
+.legend-row{display:flex;gap:10px;font-size:11px;color:var(--muted);align-items:center;flex-wrap:wrap;}
+.legend-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid;flex-shrink:0;}
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.method-btn{background:var(--card);border:1px solid var(--border);border-radius:7px;color:var(--label);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;}
+.method-btn:hover{border-color:var(--border-hi);color:var(--text);}
+.method-btn .mb-sub{display:block;font-size:9px;color:var(--muted);margin-top:3px;font-family:'IBM Plex Sans',sans-serif;}
+.method-btn.a-rry{background:rgba(245,158,11,.1);border-color:var(--amber);color:var(--amber);}
+.method-btn.a-rrx{background:rgba(59,130,246,.1);border-color:var(--blue);color:var(--blue);}
+.method-btn.a-mle{background:rgba(34,197,94,.1);border-color:var(--green);color:var(--green);}
+.method-btn.a-all{background:rgba(168,85,247,.1);border-color:var(--purple);color:var(--purple);}
+.method-opts{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:13px;display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.mo-title{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px;}
+.mo-title.rry{color:var(--amber);}.mo-title.rrx{color:var(--blue);}.mo-title.mle{color:var(--green);}.mo-title.all{color:var(--purple);}
+.info-row{display:flex;gap:8px;align-items:flex-start;}
+.info-pill{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;border:1px solid;margin-top:1px;}
+.info-pill.fixed{color:var(--muted);border-color:var(--border);}
+.info-pill.user{color:var(--amber);border-color:var(--amber);background:var(--amber-dim);}
+.minfo{font-size:11px;color:var(--muted);line-height:1.5;}
+.minfo strong{color:var(--label);}
+.calc-btn{background:var(--amber);border:none;border-radius:6px;color:#000;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;padding:12px;cursor:pointer;width:100%;transition:all .15s;}
+.calc-btn:hover{background:#d97706;}.calc-btn:active{transform:scale(.98);}
+.reset-btn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:13px;padding:9px;cursor:pointer;width:100%;transition:all .15s;}
+.reset-btn:hover{border-color:var(--border-hi);color:var(--label);}
+.export-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.export-btn{background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--label);font-size:12px;font-weight:500;padding:9px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;}
+.export-btn.pdf:hover{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.06);}
+.export-btn.xlsx:hover{border-color:var(--green);color:var(--green);background:rgba(34,197,94,.06);}
+.export-btn:disabled{opacity:.35;cursor:not-allowed;}
+/* Results */
+.method-tag{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:3px 10px;border-radius:10px;border:1px solid;}
+.method-tag.rry{color:var(--amber);border-color:var(--amber);background:var(--amber-dim);}
+.method-tag.rrx{color:var(--blue);border-color:var(--blue);background:rgba(59,130,246,.1);}
+.method-tag.mle{color:var(--green);border-color:var(--green);background:rgba(34,197,94,.1);}
+.method-tag.all{color:var(--purple);border-color:var(--purple);background:rgba(168,85,247,.1);}
+.verdict{border-radius:10px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;border:1px solid;}
+.verdict.pass-both{background:rgba(34,197,94,.08);border-color:var(--green);}
+.verdict.pass-b10{background:rgba(245,158,11,.08);border-color:var(--amber);}
+.verdict.fail{background:rgba(239,68,68,.08);border-color:var(--red);}
+.verdict.neutral{background:var(--card);border-color:var(--border);}
+.verdict-icon{font-size:24px;flex-shrink:0;margin-top:1px;}
+.verdict-text h2{font-size:14px;font-weight:600;}
+.verdict-text p{font-size:12px;color:var(--label);margin-top:3px;line-height:1.5;}
+.verdict.pass-both .verdict-text h2{color:var(--green);}
+.verdict.pass-b10 .verdict-text h2{color:var(--amber);}
+.verdict.fail .verdict-text h2{color:var(--red);}
+.verdict.neutral .verdict-text h2{color:var(--muted);}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px 14px;}
+.kpi-label{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;}
+.kpi-value{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;color:var(--text);line-height:1;}
+.kpi-unit{font-size:11px;color:var(--muted);margin-top:4px;}
+.kpi.hi-a{border-color:var(--amber);background:var(--amber-dim);}.kpi.hi-a .kpi-value{color:var(--amber);}
+.banner{border-radius:10px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;border:1px solid;}
+.banner.g{background:rgba(34,197,94,.08);border-color:var(--green);}
+.banner.r{background:rgba(239,68,68,.08);border-color:var(--red);}
+.banner.a{background:rgba(245,158,11,.08);border-color:var(--amber);}
+.banner.n{background:var(--card);border-color:var(--border);}
+.banner-icon{font-size:24px;flex-shrink:0;}
+.banner-text h2{font-size:14px;font-weight:600;}
+.banner-text p{font-size:12px;color:var(--label);margin-top:3px;line-height:1.5;}
+.banner.g .banner-text h2{color:var(--green);}
+.banner.r .banner-text h2{color:var(--red);}
+.banner.a .banner-text h2{color:var(--amber);}
+.banner.n .banner-text h2{color:var(--muted);}
+.req-checks{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.req-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px;}
+.req-card.pass{border-color:var(--green);background:rgba(34,197,94,.05);}
+.req-card.fail{border-color:var(--red);background:rgba(239,68,68,.05);}
+.req-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.req-card-title{font-size:10px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;}
+.req-pill{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;border:1px solid;}
+.req-pill.pass{color:var(--green);border-color:var(--green);background:rgba(34,197,94,.1);}
+.req-pill.fail{color:var(--red);border-color:var(--red);background:rgba(239,68,68,.1);}
+.req-nums{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);}
+.req-nums span{font-size:11px;color:var(--muted);}
+.params-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.param-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:13px;text-align:center;}
+.param-sym{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:var(--blue);margin-bottom:3px;}
+.param-name{font-size:11px;color:var(--muted);margin-bottom:7px;}
+.param-val{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--text);}
+.param-interp{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4;}
+.ctable-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.ctable-hdr{background:var(--surface);padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.ctable{width:100%;border-collapse:collapse;}
+.ctable th{padding:7px 13px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.07em;border-bottom:1px solid var(--border);}
+.ctable td{padding:8px 13px;font-family:'IBM Plex Mono',monospace;font-size:12px;border-bottom:1px solid rgba(37,44,56,.5);}
+.ctable tr:last-child td{border-bottom:none;}
+.ctable tr:hover td{background:rgba(255,255,255,.02);}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:7px 13px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.07em;border-bottom:1px solid var(--border);}
+tbody td{padding:7px 13px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text);border-bottom:1px solid rgba(37,44,56,.5);}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:rgba(255,255,255,.02);}
+.td-fail{color:var(--red);}.td-sus{color:var(--muted);font-style:italic;}
+.plot-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.plot-hdr{background:var(--surface);padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);}
+canvas{display:block;width:100%;}
+.note-row{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:12px;}
+.note-row strong{color:var(--label);}
+.dtable-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.dtable-hdr{background:var(--surface);padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);text-align:center;padding:40px;}
+.placeholder-icon{font-size:48px;opacity:.3;}
+.placeholder p{font-size:13px;line-height:1.6;max-width:280px;}
+@media(max-width:860px){.layout{grid-template-columns:1fr;}.sidebar{border-right:none;border-bottom:1px solid var(--border);}.kpi-row{grid-template-columns:1fr 1fr;}.params-grid{grid-template-columns:1fr 1fr;}.req-checks{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-icon">📊</div>
+  <div class="header-text"><h1>B10 Weibull Life Calculator</h1><p>Two-parameter Weibull — driveshaft &amp; component fatigue testing</p></div>
+  <div class="badge">WEIBULL</div>
+</div>
+<div class="layout">
+<div class="sidebar">
+
+  <div>
+    <div class="section-label">Test Samples — Failure Cycles</div>
+    <div style="margin:11px 0 8px;"><div class="legend-row">
+      <div class="legend-dot" style="background:rgba(239,68,68,.15);border-color:var(--red);"></div><span>Failed</span>
+      <div class="legend-dot" style="background:rgba(100,116,139,.15);border-color:var(--muted);margin-left:6px;"></div><span>Suspended</span>
+      <span style="font-size:10px;color:var(--border-hi);margin-left:4px;">· circle toggles · × deletes</span>
+    </div></div>
+    <div class="sample-grid" id="sampleGrid"></div>
+    <button class="add-sample-btn" onclick="addSample()" style="margin-top:7px;">+ Add Sample</button>
+    <p class="field-hint" style="margin-top:6px;">Min 3 failed samples required. Suspended = runout (right-censored).</p>
+  </div>
+
+  <div>
+    <div class="section-label">Weibull Method</div>
+    <div class="method-grid" style="margin-top:12px;">
+      <button class="method-btn a-rry" id="btn-rry" onclick="setMethod('rry',this)">RRY<span class="mb-sub">Rank Regression on Y</span></button>
+      <button class="method-btn" id="btn-rrx" onclick="setMethod('rrx',this)">RRX<span class="mb-sub">Rank Regression on X</span></button>
+      <button class="method-btn" id="btn-mle" onclick="setMethod('mle',this)">MLE<span class="mb-sub">Max Likelihood Est.</span></button>
+      <button class="method-btn" id="btn-all" onclick="setMethod('all',this)">★ Compare All<span class="mb-sub">RRY + RRX + MLE</span></button>
+    </div>
+    <div class="method-opts" id="methodOptsPanel"></div>
+  </div>
+
+  <div>
+    <div class="section-label">OEM Requirements</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+      <div class="field">
+        <label>Individual Minimum <span>cycles</span></label>
+        <input type="number" id="reqIndividual" value="25500" min="0" step="100">
+        <p class="field-hint">Every specimen must survive at least this many cycles (floor requirement).</p>
+      </div>
+      <div class="field">
+        <label>B10 Requirement <span>cycles</span></label>
+        <input type="number" id="reqB10" value="36500" min="0" step="100">
+        <p class="field-hint">Population 10th percentile must exceed this. "Compare All" checks all 3 methods.</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="calculate()">Calculate B10 Life</button>
+
+  <div>
+    <div class="section-label" style="margin-bottom:10px;">Export Results</div>
+    <div class="export-row">
+      <button class="export-btn pdf" id="pdfBtn" onclick="exportPDF()" disabled>📄 PDF Report</button>
+      <button class="export-btn xlsx" id="xlsxBtn" onclick="exportExcel()" disabled>📊 Excel Table</button>
+    </div>
+    <p style="font-size:10px;color:var(--muted);text-align:center;margin-top:7px;">Calculate first to enable exports</p>
+  </div>
+
+  <!-- References -->
+  <div>
+    <div class="section-label" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleRefs()">
+      <span>Formula References &amp; Standards</span>
+      <span id="refChevron" style="font-size:12px;color:var(--muted);">▼</span>
+    </div>
+    <div id="refPanel" style="display:none;margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Weibull Distribution</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          <strong style="color:var(--text);">F(t) = 1 − e<sup>−(t/η)<sup>β</sup></sup></strong><br>
+          Source: <em>Weibull, W. (1951). "A Statistical Distribution Function of Wide Applicability." Journal of Applied Mechanics, 18(3), pp. 293–297.</em> ASME. Open-access seminal paper — public domain.
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Median Ranks — Benard's Approximation</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          <strong style="color:var(--text);">F<sub>i</sub> = (i − 0.3) / (n + 0.4)</strong><br>
+          Source: <em>Benard, A. &amp; Bos-Levenbach, E.C. (1953). "The Plotting of Observations on Probability Paper." Statistica Neerlandica, 7(3), pp. 163–173.</em> Standard approximation universally adopted in reliability engineering.
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Median Ranks — Hazen &amp; Mean Rank</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          <strong style="color:var(--text);">Hazen: F<sub>i</sub> = (i − 0.5) / n</strong><br>
+          <strong style="color:var(--text);">Mean: F<sub>i</sub> = i / (n + 1)</strong><br>
+          Source: <em>Nelson, W. (1982). Applied Life Data Analysis. John Wiley &amp; Sons, pp. 141–143.</em> Standard reference for plotting position formulas.
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Rank Regression — RRY &amp; RRX</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          Linearisation: <strong style="color:var(--text);">Y = β·X + C</strong> where <strong style="color:var(--text);">X = ln(t)</strong>, <strong style="color:var(--text);">Y = ln(−ln(1−F))</strong><br>
+          RRY: OLS minimising vertical residuals. RRX: OLS minimising horizontal residuals (default in ReliaSoft Weibull++).<br>
+          Source: <em>Meeker, W.Q. &amp; Escobar, L.A. (1998). Statistical Methods for Reliability Data. John Wiley &amp; Sons, Ch. 6.</em>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Maximum Likelihood Estimation (MLE)</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          Log-likelihood: <strong style="color:var(--text);">ℓ(β,η) = r·ln(β/η<sup>β</sup>) + (β−1)·Σln(t<sub>i</sub>) − Σ(t<sub>j</sub>/η)<sup>β</sup></strong><br>
+          Solved via Newton-Raphson iteration on the β score equation.<br>
+          Source: <em>Lawless, J.F. (2003). Statistical Models and Methods for Lifetime Data. 2nd ed. John Wiley &amp; Sons, Ch. 4.</em>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">B-Life (B10) Calculation</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          <strong style="color:var(--text);">B<sub>p</sub> = η · (−ln(1 − p/100))<sup>1/β</sup></strong><br>
+          For B10: p = 0.10, giving B<sub>10</sub> = η · (−ln 0.9)<sup>1/β</sup><br>
+          Source: <em>O'Connor, P.D.T. &amp; Kleyner, A. (2012). Practical Reliability Engineering. 5th ed. John Wiley &amp; Sons, Ch. 2–3.</em>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Automotive Application Standard</div>
+        <div style="font-size:11px;color:var(--label);line-height:1.6;">
+          B10 / L10 life concept and two-parameter Weibull application to component testing:<br>
+          <em>ISO 281:2007 — Rolling bearings: Dynamic load ratings and rating life.</em><br>
+          <em>SAE J1099 — Technical Report on Fatigue Properties.</em><br>
+          Individual minimum + B10 dual-requirement structure per OEM DVP&amp;R practice (e.g. GM BIQS, Ford Q1).
+        </div>
+      </div>
+
+      <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:7px;padding:12px;">
+        <div style="font-size:10px;color:var(--blue);font-weight:600;margin-bottom:5px;">ⓘ Disclaimer</div>
+        <div style="font-size:10px;color:var(--muted);line-height:1.6;">All formulas in this calculator are derived exclusively from published academic literature and international standards listed above. No proprietary methods, company-specific data, or confidential test procedures are used or reproduced. This tool is intended for general educational and engineering reference purposes.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="reset-btn" onclick="resetForm()">Reset to Example Data</button>
+</div>
+
+<div class="results" id="resultsPanel">
+  <div class="placeholder"><div class="placeholder-icon">📈</div>
+  <p>Select a Weibull method, enter sample data and OEM requirements, then click <strong>Calculate</strong>.</p></div>
+</div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────
+let samples=[{cycles:41200,failed:true},{cycles:38700,failed:true},{cycles:52100,failed:true},{cycles:44500,failed:true},{cycles:39800,failed:true},{cycles:47300,failed:true}];
+let curMethod='rry', curMR='benard', lastResult=null;
+
+const MRF={
+  benard:{label:"Benard's  (i−0.3)/(n+0.4)", fn:(i,r)=>(i-0.3)/(r+0.4)},
+  hazen: {label:"Hazen     (i−0.5)/n",         fn:(i,r)=>(i-0.5)/r},
+  mean:  {label:"Mean Rank  i/(n+1)",           fn:(i,r)=>i/(r+1)},
+};
+const MM={
+  rry:{name:'RRY',full:'Rank Regression on Y',color:'#f59e0b',cls:'rry'},
+  rrx:{name:'RRX',full:'Rank Regression on X',color:'#3b82f6',cls:'rrx'},
+  mle:{name:'MLE',full:'Maximum Likelihood',   color:'#22c55e',cls:'mle'},
+};
+
+// ─── Sample grid ─────────────────────────────────────────────
+function renderGrid(){
+  const g=document.getElementById('sampleGrid'); g.innerHTML='';
+  samples.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='sample-row';
+    row.innerHTML=`<div class="sample-num">${i+1}</div>
+      <input type="number" value="${s.cycles}" min="1" step="100" onchange="samples[${i}].cycles=parseFloat(this.value)||0" style="font-size:13px;padding:7px 9px;">
+      <div class="sample-status ${s.failed?'failed':'suspended'}" onclick="toggleS(${i})" title="Toggle">${s.failed?'✕':'○'}</div>
+      <button class="del-btn" onclick="delS(${i})" title="Delete">×</button>`;
+    g.appendChild(row);
+  });
+}
+function syncS(){document.querySelectorAll('#sampleGrid input[type="number"]').forEach((inp,i)=>{samples[i].cycles=parseFloat(inp.value)||0;});}
+function toggleS(i){samples[i].failed=!samples[i].failed;renderGrid();}
+function addSample(){samples.push({cycles:45000,failed:true});renderGrid();}
+function delS(i){if(samples.length<=1){alert('Need at least 1 sample.');return;}samples.splice(i,1);renderGrid();}
+
+// ─── Method selector ─────────────────────────────────────────
+function setMethod(m,btn){
+  curMethod=m;
+  document.querySelectorAll('.method-btn').forEach(b=>b.className='method-btn');
+  btn.classList.add('a-'+m);
+  renderMethodOpts();
+}
+function renderMethodOpts(){
+  const p=document.getElementById('methodOptsPanel');
+  const mrSel=()=>`<select onchange="curMR=this.value" style="margin-top:5px;">${Object.entries(MRF).map(([k,v])=>`<option value="${k}" ${k===curMR?'selected':''}>${v.label}</option>`).join('')}</select>`;
+  const m=curMethod;
+  if(m==='rry')p.innerHTML=`<div class="mo-title rry">RRY — Parameters</div>
+    <div class="info-row"><div class="info-pill fixed">FIXED</div><div class="minfo">Regression direction: <strong>Y-axis</strong> (vertical residuals). Industry default for most DVP&amp;R submissions.</div></div>
+    <div class="info-row"><div class="info-pill user">USER</div><div class="minfo" style="flex:1;">Median rank formula:${mrSel()}</div></div>
+    <div class="minfo" style="font-size:10px;">Benard's is the ISO/industry standard. Hazen is older but accepted.</div>`;
+  else if(m==='rrx')p.innerHTML=`<div class="mo-title rrx">RRX — Parameters</div>
+    <div class="info-row"><div class="info-pill fixed">FIXED</div><div class="minfo">Regression direction: <strong>X-axis</strong> (horizontal residuals). Default in ReliaSoft Weibull++. Theoretically preferred — life is the uncertain axis.</div></div>
+    <div class="info-row"><div class="info-pill user">USER</div><div class="minfo" style="flex:1;">Median rank formula:${mrSel()}</div></div>
+    <div class="minfo" style="font-size:10px;color:#f59e0b;">RRX gives higher B10 than RRY for small n — this is why different tools disagree.</div>`;
+  else if(m==='mle')p.innerHTML=`<div class="mo-title mle">MLE — Parameters</div>
+    <div class="info-row"><div class="info-pill fixed">FIXED</div><div class="minfo"><strong>No median ranks.</strong> Maximises the log-likelihood function directly from raw cycle data. Handles right-censored (suspended) specimens correctly. Most efficient for n ≥ 10.</div></div>
+    <div class="info-row"><div class="info-pill fixed">FIXED</div><div class="minfo">Solver: Newton-Raphson on β, then η derived analytically. Converges &lt;50 iterations for typical data.</div></div>
+    <div class="minfo" style="font-size:10px;color:var(--red);">⚠ For n &lt; 6, MLE can be biased. Prefer RRY/RRX for very small samples.</div>`;
+  else p.innerHTML=`<div class="mo-title all">Compare All — RRY + RRX + MLE</div>
+    <div class="info-row"><div class="info-pill user">USER</div><div class="minfo" style="flex:1;">Median rank for RRY &amp; RRX:${mrSel()}</div></div>
+    <div class="minfo" style="margin-top:2px;"><strong style="color:var(--purple);">Key insight:</strong> If all 3 methods pass your B10 requirement, your design is statistically robust regardless of which tool the customer or OEM uses. If they split, you need more samples.</div>`;
+}
+
+// ─── Weibull math ─────────────────────────────────────────────
+function getMR(failedSorted){return failedSorted.map((_,i)=>MRF[curMR].fn(i+1,failedSorted.length));}
+function linearise(fs,mr){return{X:fs.map(t=>Math.log(t)),Y:mr.map(f=>Math.log(-Math.log(1-f)))};}
+function ols(X,Y){
+  const xm=X.reduce((a,b)=>a+b,0)/X.length, ym=Y.reduce((a,b)=>a+b,0)/Y.length;
+  let num=0,den=0; for(let i=0;i<X.length;i++){num+=(X[i]-xm)*(Y[i]-ym);den+=(X[i]-xm)**2;}
+  return{slope:num/den,intercept:ym-(num/den)*xm,xm,ym};
+}
+function r2calc(X,Y,sl,ic){const ym=Y.reduce((a,b)=>a+b,0)/Y.length;const ss=Y.reduce((a,y)=>a+(y-ym)**2,0);const sr=Y.reduce((a,y,i)=>a+(y-(sl*X[i]+ic))**2,0);return 1-sr/ss;}
+function bLife(eta,beta,p){return eta*Math.pow(-Math.log(1-p),1/beta);}
+
+function fitRRY(fs,n){const mr=getMR(fs);const{X,Y}=linearise(fs,mr);const{slope,intercept}=ols(X,Y);const beta=slope,eta=Math.exp(-intercept/beta),r2=r2calc(X,Y,beta,intercept);return{beta,eta,X,Y,mr,intercept,r2,method:'rry'};}
+function fitRRX(fs,n){
+  const mr=getMR(fs);const{X,Y}=linearise(fs,mr);
+  const xm=X.reduce((a,b)=>a+b,0)/X.length,ym=Y.reduce((a,b)=>a+b,0)/Y.length;
+  let num=0,den=0;for(let i=0;i<X.length;i++){num+=(X[i]-xm)*(Y[i]-ym);den+=(Y[i]-ym)**2;}
+  const b=num/den,a=xm-b*ym;
+  const beta=1/b,intercept=-a/b,eta=Math.exp(a),r2=r2calc(X,Y,beta,intercept);
+  return{beta,eta,X,Y,mr,intercept,r2,method:'rrx'};
+}
+function fitMLE(fs,allT){
+  const r=fs.length;let beta=1.5;
+  for(let it=0;it<1000;it++){
+    let stbl=0,st=0,stbl2=0;
+    for(const t of allT){const tb=Math.pow(t,beta),lt=Math.log(t);st+=tb;stbl+=tb*lt;stbl2+=tb*lt*lt;}
+    const slnf=fs.reduce((a,t)=>a+Math.log(t),0);
+    const f=r/beta+slnf-r*stbl/st;
+    const fp=-r/(beta*beta)-r*(stbl2*st-stbl*stbl)/(st*st);
+    const d=f/fp; beta-=d; if(beta<=0)beta=0.1; if(Math.abs(d)<1e-9)break;
+  }
+  if(beta<=0||!isFinite(beta))beta=1.0;
+  const st=allT.reduce((a,t)=>a+Math.pow(t,beta),0);
+  const eta=Math.pow(st/r,1/beta);
+  const mr=getMR(fs);const{X,Y}=linearise(fs,mr);
+  const intercept=-beta*Math.log(eta),r2=r2calc(X,Y,beta,intercept);
+  return{beta,eta,X,Y,mr,intercept,r2,method:'mle'};
+}
+function betaInterp(b){if(b<1)return'Infant mortality / early failure mode';if(b<2)return'Random failures, early wear-out onset';if(b<4)return'Normal wear-out fatigue (typical driveline)';return'Rapid wear-out, tight failure distribution';}
+
+// ─── Calculate entry ──────────────────────────────────────────
+function calculate(){
+  syncS();
+  const failed=samples.filter(s=>s.failed&&s.cycles>0).map(s=>s.cycles).sort((a,b)=>a-b);
+  const allT=samples.filter(s=>s.cycles>0).map(s=>s.cycles);
+  const n=samples.length,r=failed.length;
+  if(r<3){alert('Need at least 3 failed samples.');return;}
+  const reqInd=parseFloat(document.getElementById('reqIndividual').value)||0;
+  const reqB10=parseFloat(document.getElementById('reqB10').value)||0;
+  const minF=Math.min(...failed);
+  if(curMethod==='all')renderAll(failed,allT,n,r,reqInd,reqB10,minF);
+  else renderSingle(curMethod,failed,allT,n,r,reqInd,reqB10,minF);
+  document.getElementById('pdfBtn').disabled=false;
+  document.getElementById('xlsxBtn').disabled=false;
+}
+
+// ─── Single method render ─────────────────────────────────────
+function renderSingle(method,failed,allT,n,r,reqInd,reqB10,minF){
+  const fit=method==='mle'?fitMLE(failed,allT):method==='rrx'?fitRRX(failed,n):fitRRY(failed,n);
+  const{beta,eta,X,Y,mr,intercept,r2}=fit;
+  const b10=bLife(eta,beta,.1),b50=bLife(eta,beta,.5);
+  const pInd=reqInd>0?minF>=reqInd:null, pB10=reqB10>0?b10>=reqB10:null;
+  const{vClass,vIcon,vTitle,vBody}=getVerdict(pInd,pB10,b10,minF,reqInd,reqB10);
+  const m=MM[method];
+  const mrLabel=method!=='mle'?'Median ranks: '+MRF[curMR].label.split('(')[0].trim():'Newton-Raphson MLE';
+  const tRows=buildTRows(failed,mr,Y,reqInd);
+
+  document.getElementById('resultsPanel').innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="method-tag ${m.cls}">${m.name} — ${m.full}</div>
+      <span style="font-size:11px;color:var(--muted);">${mrLabel}</span>
+    </div>
+    <div class="verdict ${vClass}"><div class="verdict-icon">${vIcon}</div>
+      <div class="verdict-text"><h2>${vTitle}</h2><p>${vBody}</p></div></div>
+    <div class="kpi-row">
+      <div class="kpi hi-a"><div class="kpi-label">B10 Life</div><div class="kpi-value">${fmt1k(b10)}</div><div class="kpi-unit">${b10.toFixed(0).toLocaleString()} cycles</div></div>
+      <div class="kpi"><div class="kpi-label">B50 Median</div><div class="kpi-value">${fmt1k(b50)}</div><div class="kpi-unit">${b50.toFixed(0).toLocaleString()} cycles</div></div>
+      <div class="kpi"><div class="kpi-label">Weibull β</div><div class="kpi-value">${beta.toFixed(3)}</div><div class="kpi-unit">shape parameter</div></div>
+      <div class="kpi"><div class="kpi-label">R² Fit</div><div class="kpi-value">${(r2*100).toFixed(1)}%</div><div class="kpi-unit">${r2>.95?'excellent':r2>.9?'good':'check data'}</div></div>
+    </div>
+    ${reqBlock(pInd,pB10,minF,reqInd,b10,reqB10)}
+    <div class="params-grid">
+      <div class="param-card"><div class="param-sym">β</div><div class="param-name">Shape</div><div class="param-val">${beta.toFixed(4)}</div><div class="param-interp">${betaInterp(beta)}</div></div>
+      <div class="param-card"><div class="param-sym">η</div><div class="param-name">Scale / Char. Life</div><div class="param-val">${eta.toFixed(0).toLocaleString()}</div><div class="param-interp">63.2% of population fails by this point</div></div>
+      <div class="param-card"><div class="param-sym">R²</div><div class="param-name">Regression fit</div><div class="param-val">${(r2*100).toFixed(2)}%</div><div class="param-interp">${r2>.95?'Strong Weibull fit — data is consistent':r2>.85?'Acceptable fit':'Weak — check for outliers or mixed modes'}</div></div>
+    </div>
+    <div class="dtable-wrap"><div class="dtable-hdr" style="color:${m.color};">Sample Data — Weibull Rank Regression</div>
+      <table><thead><tr><th>#</th><th>Cycles</th><th>Rank i</th><th>Median Rank</th><th>ln(−ln(1−F))</th><th>Ind. Min</th></tr></thead>
+      <tbody>${tRows}</tbody></table></div>
+    <div class="plot-wrap"><div class="plot-hdr" style="color:${m.color};">Weibull Probability Plot — ${m.name}</div>
+      <canvas id="weibullCanvas" height="260"></canvas></div>
+    <div class="note-row"><strong>Method:</strong> ${m.full}. ${method!=='mle'?'Median rank: '+MRF[curMR].label:'No median ranks — MLE maximises likelihood directly'}. B10 = η·(−ln 0.9)<sup>1/β</sup>. For n&lt;10, consider confidence bounds before design release.</div>`;
+
+  lastResult={beta,eta,b10,b50,r2,reqInd,reqB10,pInd,pB10,minF,n,r,vTitle,vClass,
+    betaI:betaInterp(beta),failed,mr,Y,intercept,method,mrLabel,allResults:null};
+  drawSingle(X,Y,beta,intercept,b10,b50,r2,m.color);
+}
+
+// ─── Compare All render ───────────────────────────────────────
+function renderAll(failed,allT,n,r,reqInd,reqB10,minF){
+  const fits=[fitRRY(failed,n),fitRRX(failed,n),fitMLE(failed,allT)];
+  const res=fits.map(f=>({...f,b10:bLife(f.eta,f.beta,.1),b50:bLife(f.eta,f.beta,.5)}));
+  res.forEach(re=>re.pB10=reqB10>0?re.b10>=reqB10:null);
+  const pInd=reqInd>0?minF>=reqInd:null;
+  const pass3=res.filter(re=>re.pB10===true).length;
+  const fail3=res.filter(re=>re.pB10===false).length;
+  const spread=((Math.max(...res.map(re=>re.b10))/Math.min(...res.map(re=>re.b10))-1)*100).toFixed(0);
+
+  let banCls,banIcon,banTitle,banBody;
+  if(reqB10>0){
+    if(pass3===3&&(pInd===true||pInd===null)){banCls='g';banIcon='🛡️';banTitle='ALL 3 METHODS PASS — Design is Statistically Robust';banBody=`Every fitting method gives B10 above the ${reqB10.toLocaleString()} cycle requirement. This is defensible regardless of which Weibull tool your OEM uses.`;}
+    else if(pass3===0){banCls='r';banIcon='❌';banTitle='ALL 3 METHODS FAIL — Fundamental Design Issue';banBody=`No fitting method produces a B10 above ${reqB10.toLocaleString()} cycles. Changing the statistical tool will not fix this — the design needs more structural margin.`;}
+    else{banCls='a';banIcon='⚠️';banTitle=`${pass3} of 3 Methods Pass — Result is Method-Sensitive`;banBody=`The B10 estimate depends significantly on the fitting method. With ${r} failures, this spread is expected for small samples. Align with your OEM on the required method.`;}
+  }else{banCls='n';banIcon='📊';banTitle='All 3 Methods Calculated';banBody='Enter a B10 requirement to see which methods pass. Results shown side by side below.';}
+
+  const mks=['rry','rrx','mle'];
+  const mColors=['#f59e0b','#3b82f6','#22c55e'];
+  const cRows=res.map((re,i)=>{
+    const mk=mks[i],mc=mColors[i];
+    const bp=re.pB10===true?`<span style="color:var(--green);font-weight:600;">✓ PASS</span>`:re.pB10===false?`<span style="color:var(--red);font-weight:600;">✗ FAIL</span>`:'—';
+    return`<tr>
+      <td style="font-weight:600;color:${mc};">${mk.toUpperCase()}</td>
+      <td style="color:var(--label);font-size:11px;">${MM[mk].full}${mk!=='mle'?' · '+MRF[curMR].label.split('(')[0].trim():''}</td>
+      <td>${re.beta.toFixed(3)}</td><td>${re.eta.toFixed(0).toLocaleString()}</td>
+      <td style="color:var(--amber);font-weight:600;">${re.b10.toFixed(0).toLocaleString()}</td>
+      <td>${re.b50.toFixed(0).toLocaleString()}</td>
+      <td>${(re.r2*100).toFixed(1)}%</td><td>${bp}</td></tr>`;
+  }).join('');
+
+  const pCards=res.map((re,i)=>`<div class="param-card" style="border-color:${mColors[i]}22;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:${mColors[i]};margin-bottom:5px;">${mks[i].toUpperCase()}</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">${MM[mks[i]].full}</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;display:flex;flex-direction:column;gap:3px;">
+      <span>β = <strong style="color:var(--text);">${re.beta.toFixed(4)}</strong></span>
+      <span>η = <strong style="color:var(--text);">${re.eta.toFixed(0).toLocaleString()}</strong></span>
+      <span>B10 = <strong style="color:${mColors[i]};">${re.b10.toFixed(0).toLocaleString()}</strong></span>
+      <span>R² = <strong style="color:var(--text);">${(re.r2*100).toFixed(1)}%</strong></span>
+    </div></div>`).join('');
+
+  document.getElementById('resultsPanel').innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="method-tag all">★ Compare All — RRY · RRX · MLE</div>
+      <span style="font-size:11px;color:var(--muted);">Median ranks for RRY &amp; RRX: ${MRF[curMR].label.split('(')[0].trim()}</span>
+    </div>
+    <div class="banner ${banCls}"><div class="banner-icon">${banIcon}</div>
+      <div class="banner-text"><h2>${banTitle}</h2><p>${banBody}</p></div></div>
+    <div class="kpi-row">
+      <div class="kpi hi-a"><div class="kpi-label">B10 Min (across methods)</div><div class="kpi-value">${fmt1k(Math.min(...res.map(re=>re.b10)))}</div><div class="kpi-unit">${Math.min(...res.map(re=>re.b10)).toFixed(0).toLocaleString()} cycles</div></div>
+      <div class="kpi" style="border-color:#f59e0b33;"><div class="kpi-label">B10 Max (across methods)</div><div class="kpi-value">${fmt1k(Math.max(...res.map(re=>re.b10)))}</div><div class="kpi-unit">${Math.max(...res.map(re=>re.b10)).toFixed(0).toLocaleString()} cycles</div></div>
+      <div class="kpi"><div class="kpi-label">Method Spread</div><div class="kpi-value">${spread}%</div><div class="kpi-unit">${Number(spread)>30?'high — add samples':Number(spread)>15?'moderate':'low spread'}</div></div>
+      <div class="kpi"><div class="kpi-label">Methods Passing</div><div class="kpi-value">${reqB10>0?pass3+'/3':'—'}</div><div class="kpi-unit">${reqB10>0?'of 3 methods pass B10':'enter req. to check'}</div></div>
+    </div>
+    <div class="ctable-wrap"><div class="ctable-hdr" style="color:var(--purple);">Method Comparison — B10 Life Results</div>
+      <table class="ctable"><thead><tr>
+        <th>Method</th><th>Full Name</th><th>β</th><th>η</th><th>B10 (cycles)</th><th>B50 (cycles)</th><th>R²</th>
+        <th>${reqB10>0?'vs '+reqB10.toLocaleString()+' req':'B10 Result'}</th>
+      </tr></thead><tbody>${cRows}</tbody></table></div>
+    ${reqInd>0?`<div class="req-checks" style="grid-template-columns:1fr;"><div class="req-card ${pInd?'pass':'fail'}">
+      <div class="req-card-header"><div class="req-card-title">Individual Minimum (same for all methods)</div><div class="req-pill ${pInd?'pass':'fail'}">${pInd?'PASS':'FAIL'}</div></div>
+      <div class="req-nums">${minF.toLocaleString()} <span>actual minimum</span> vs ${reqInd.toLocaleString()} <span>required</span></div></div></div>`:''}
+    <div class="plot-wrap"><div class="plot-hdr" style="color:var(--purple);">Weibull Probability Plot — All 3 Methods Overlaid</div>
+      <canvas id="weibullCanvas" height="280"></canvas></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">${pCards}</div>
+    <div class="note-row"><strong>Why methods differ:</strong> RRY minimises vertical residuals on the Weibull plot; RRX minimises horizontal (time-axis) residuals — theoretically preferred since life is the uncertain quantity. MLE maximises likelihood directly with no median ranks. With ${r} failures, a spread of ${spread}% is ${Number(spread)>20?'significant — more specimens would narrow this.':'normal and acceptable for this sample size.'}</div>`;
+
+  lastResult={n,r,reqInd,reqB10,pInd,minF,allResults:res,mrLabel:MRF[curMR].label,method:'all',b10:res[0].b10};
+  drawAll(res);
+}
+
+// ─── Helpers ─────────────────────────────────────────────────
+function fmt1k(v){return(v/1000).toFixed(1)+'k';}
+function getVerdict(pInd,pB10,b10,minF,reqInd,reqB10){
+  if(pInd===null&&pB10===null)return{vClass:'neutral',vIcon:'📊',vTitle:'Analysis Complete',vBody:'No requirements entered — results shown below.'};
+  const iOk=pInd===null||pInd, bOk=pB10===null||pB10;
+  if(iOk&&bOk)return{vClass:'pass-both',vIcon:'✅',vTitle:'PASS — All Requirements Met',vBody:`B10 = ${b10.toFixed(0).toLocaleString()} cycles. Min sample = ${minF.toLocaleString()} cycles. Both criteria satisfied.`};
+  if(!iOk&&bOk)return{vClass:'pass-b10',vIcon:'⚠️',vTitle:'PARTIAL — B10 Passes, Ind. Min Fails',vBody:`B10 meets requirement but min sample (${minF.toLocaleString()}) is below floor of ${reqInd.toLocaleString()}. Quality investigation needed.`};
+  const fs=[];if(pB10===false)fs.push(`B10=${b10.toFixed(0).toLocaleString()} < ${reqB10.toLocaleString()} req`);if(pInd===false)fs.push(`Min=${minF.toLocaleString()} < ${reqInd.toLocaleString()} floor`);
+  return{vClass:'fail',vIcon:'❌',vTitle:'FAIL — Requirement(s) Not Met',vBody:fs.join(' · ')};
+}
+function reqBlock(pInd,pB10,minF,reqInd,b10,reqB10){
+  if(reqInd===0&&reqB10===0)return'';
+  return`<div class="req-checks">
+    ${reqInd>0?`<div class="req-card ${pInd?'pass':'fail'}"><div class="req-card-header"><div class="req-card-title">Individual Minimum</div><div class="req-pill ${pInd?'pass':'fail'}">${pInd?'PASS':'FAIL'}</div></div><div class="req-nums">${minF.toLocaleString()} <span>actual min</span><br>${reqInd.toLocaleString()} <span>required</span></div></div>`:''}
+    ${reqB10>0?`<div class="req-card ${pB10?'pass':'fail'}"><div class="req-card-header"><div class="req-card-title">B10 Requirement</div><div class="req-pill ${pB10?'pass':'fail'}">${pB10?'PASS':'FAIL'}</div></div><div class="req-nums">${b10.toFixed(0).toLocaleString()} <span>B10 estimated</span><br>${reqB10.toLocaleString()} <span>required</span></div></div>`:''}
+  </div>`;
+}
+function buildTRows(failed,mr,Y,reqInd){
+  return samples.map((s,i)=>{
+    const fi=s.failed?failed.indexOf(s.cycles):-1;
+    const rank=fi>=0?fi+1:'—', mrv=fi>=0?mr[fi]?.toFixed(4):'—', yv=fi>=0?Y[fi]?.toFixed(4):'—';
+    const ic=reqInd>0&&s.failed?(s.cycles>=reqInd?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗</span>'):'—';
+    return`<tr><td>${i+1}</td><td class="${s.failed?'td-fail':'td-sus'}">${s.cycles.toLocaleString()}${s.failed?'':' ○'}</td><td>${rank}</td><td>${mrv}</td><td>${yv}</td><td>${ic}</td></tr>`;
+  }).join('');
+}
+
+// ─── Canvas plots ─────────────────────────────────────────────
+function setupCanvas(H){
+  const c=document.getElementById('weibullCanvas'); if(!c)return null;
+  const dpr=window.devicePixelRatio||1, W=c.offsetWidth||640;
+  c.width=W*dpr;c.height=H*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.fillStyle='#191e26';ctx.fillRect(0,0,W,H);
+  return{ctx,W,H};
+}
+function axes(ctx,W,H,pad,xMin,xMax,yMin,yMax){
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+  const px=x=>pad.l+((x-xMin)/(xMax-xMin))*pw;
+  const py=y=>pad.t+(1-(y-yMin)/(yMax-yMin))*ph;
+  ctx.strokeStyle='#252c38';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const yg=yMin+i*(yMax-yMin)/5;ctx.beginPath();ctx.moveTo(pad.l,py(yg));ctx.lineTo(pad.l+pw,py(yg));ctx.stroke();
+    const xg=xMin+i*(xMax-xMin)/5;ctx.beginPath();ctx.moveTo(px(xg),pad.t);ctx.lineTo(px(xg),pad.t+ph);ctx.stroke();
+  }
+  ctx.fillStyle='#64748b';ctx.font='10px IBM Plex Mono,monospace';
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=5;i++){const yg=yMin+i*(yMax-yMin)/5;ctx.fillText(yg.toFixed(1),pad.l-5,py(yg));}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let i=0;i<=5;i++){const xg=xMin+i*(xMax-xMin)/5;ctx.fillText(xg.toFixed(2),px(xg),pad.t+ph+7);}
+  ctx.fillStyle='#94a3b8';ctx.font='11px IBM Plex Mono,monospace';ctx.textAlign='center';
+  ctx.fillText('ln(cycles)',pad.l+pw/2,H-4);
+  ctx.save();ctx.translate(10,pad.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('ln(-ln(1-F))',0,0);ctx.restore();
+  return{px,py,pw,ph};
+}
+function rline(ctx,px,py,sl,ic,xMin,xMax,color,dash=[]){
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash);
+  ctx.beginPath();ctx.moveTo(px(xMin),py(sl*xMin+ic));ctx.lineTo(px(xMax),py(sl*xMax+ic));ctx.stroke();ctx.setLineDash([]);
+}
+function pts(ctx,X,Y,px,py,color='#ef4444'){
+  X.forEach((x,i)=>{
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(px(x),py(Y[i]),5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px(x),py(Y[i]),5,0,Math.PI*2);ctx.stroke();
+  });
+}
+function bmark(ctx,px,py,lt,yMin,label,color){
+  if(!isFinite(lt))return;
+  ctx.strokeStyle=color+'88';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  const by=py(yMin);ctx.beginPath();ctx.moveTo(px(lt),by);ctx.lineTo(px(lt),by-20);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=color;ctx.font='10px IBM Plex Mono,monospace';ctx.textAlign='left';ctx.fillText(label,px(lt)+3,by-18);
+}
+
+function drawSingle(X,Y,beta,ic,b10,b50,r2,color){
+  const H=260;const s=setupCanvas(H);if(!s)return;const{ctx,W}=s;
+  const pad={t:18,r:30,b:44,l:60};
+  const xMin=Math.min(...X)-.15,xMax=Math.max(...X)+.15,yMin=Math.min(...Y)-.4,yMax=Math.max(...Y)+.4;
+  const{px,py}=axes(ctx,W,H,pad,xMin,xMax,yMin,yMax);
+  rline(ctx,px,py,beta,ic,xMin,xMax,color,[6,3]);
+  bmark(ctx,px,py,Math.log(b10),yMin,'B10','#ef4444');
+  bmark(ctx,px,py,Math.log(b50),yMin,'B50','#3b82f6');
+  pts(ctx,X,Y,px,py,'#ef4444');
+  ctx.fillStyle=color;ctx.textAlign='right';ctx.textBaseline='top';ctx.font='10px IBM Plex Mono,monospace';
+  ctx.fillText(`R²=${(r2*100).toFixed(1)}%`,W-pad.r-4,pad.t+4);
+}
+
+function drawAll(res){
+  const H=280;const s=setupCanvas(H);if(!s)return;const{ctx,W}=s;
+  const pad={t:18,r:95,b:44,l:60};
+  const allX=res.flatMap(r=>r.X),allY=res.flatMap(r=>r.Y);
+  const xMin=Math.min(...allX)-.15,xMax=Math.max(...allX)+.15,yMin=Math.min(...allY)-.4,yMax=Math.max(...allY)+.4;
+  const{px,py,pw,ph}=axes(ctx,W,H,pad,xMin,xMax,yMin,yMax);
+  const colors=['#f59e0b','#3b82f6','#22c55e'],dashes=[[6,3],[],[2,5]];
+  res.forEach((re,i)=>rline(ctx,px,py,re.beta,re.intercept,xMin,xMax,colors[i],dashes[i]));
+  // B10 vertical markers
+  res.forEach((re,i)=>{
+    const lx=Math.log(re.b10);
+    if(lx>xMin&&lx<xMax){
+      ctx.strokeStyle=colors[i]+'55';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(px(lx),py(yMin));ctx.lineTo(px(lx),py(re.beta*lx+re.intercept));ctx.stroke();ctx.setLineDash([]);
+    }
+  });
+  pts(ctx,res[0].X,res[0].Y,px,py,'#ef4444');
+  // Legend
+  const labs=['RRY','RRX','MLE'];const dashLabs=['- - -','——','····'];
+  res.forEach((re,i)=>{
+    const ly=pad.t+20+i*32;
+    ctx.fillStyle=colors[i];ctx.font='bold 10px IBM Plex Mono,monospace';ctx.textAlign='left';
+    ctx.fillText(labs[i],W-pad.r+5,ly);
+    ctx.font='9px IBM Plex Mono,monospace';ctx.fillStyle='#94a3b8';
+    ctx.fillText('B10='+fmt1k(re.b10),W-pad.r+5,ly+13);
+  });
+}
+
+// ─── Export PDF ───────────────────────────────────────────────
+function exportPDF(){
+  if(!lastResult)return;
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const now=new Date(),ds=now.toLocaleDateString('en-CA');
+  const W=210,ML=18,MR_=18,CW=W-ML-MR_;
+  const C={bg:[13,15,18],sur:[19,23,29],card:[25,30,38],bdr:[37,44,56],
+    am:[245,158,11],gr:[34,197,94],rd:[239,68,68],bl:[59,130,246],
+    pu:[168,85,247],tx:[226,232,240],mu:[100,116,139],lb:[148,163,184]};
+  let y=0;
+  const fill=(x,yy,w,h,c)=>{doc.setFillColor(...c);doc.rect(x,yy,w,h,'F');};
+  const ln=(x1,y1,x2,y2,c=C.bdr,lw=.3)=>{doc.setDrawColor(...c);doc.setLineWidth(lw);doc.line(x1,y1,x2,y2);};
+  const sf=(sz,st='normal',c=C.tx)=>{doc.setFontSize(sz);doc.setFont('helvetica',st);doc.setTextColor(...c);};
+  // Header
+  fill(0,0,W,27,C.sur);ln(0,27,W,27,C.bdr,.4);
+  fill(ML,7,14,13,[61,45,8]);doc.setDrawColor(...C.am);doc.setLineWidth(.4);doc.rect(ML,7,14,13,'S');
+  sf(13,'bold',C.tx);doc.text('B10 Weibull Life Calculator',ML+18,14);
+  sf(8,'normal',C.mu);doc.text('Two-parameter Weibull fatigue life analysis — component testing',ML+18,20);
+  fill(W-MR_-22,9,22,8,[61,45,8]);doc.setDrawColor(...C.am);doc.setLineWidth(.3);doc.roundedRect(W-MR_-22,9,22,8,1,1,'S');
+  sf(7,'bold',C.am);doc.text('WEIBULL',W-MR_-11,14.2,{align:'center'});
+  const mLabel=lastResult.method==='all'?'Compare All (RRY+RRX+MLE)':MM[lastResult.method]?.full||'';
+  sf(7,'normal',C.mu);doc.text(`Generated: ${ds}   n=${lastResult.n}, r=${lastResult.r}   Method: ${mLabel}`,ML,33);
+  y=39;
+
+  if(lastResult.allResults){
+    // Compare All
+    fill(ML,y,CW,12,[45,15,70]);doc.setDrawColor(...C.pu);doc.setLineWidth(.4);doc.rect(ML,y,CW,12,'S');
+    doc.setFillColor(...C.pu);doc.rect(ML,y,2.5,12,'F');
+    sf(9,'bold',C.pu);doc.text('COMPARE ALL METHODS — RRY · RRX · MLE',ML+6,y+8);y+=16;
+    const cws=[14,44,16,22,22,22,13,22];
+    const hdrs=['Method','Full Name','β','η','B10','B50','R²','B10 vs Req'];
+    const rowH=8;
+    fill(ML,y,CW,rowH,C.sur);doc.setDrawColor(...C.bdr);doc.setLineWidth(.3);doc.rect(ML,y,CW,rowH,'S');
+    let cx=ML;sf(6,'bold',C.mu);
+    hdrs.forEach((h,i)=>{doc.text(h,cx+2,y+5.5);cx+=cws[i];});y+=rowH;
+    const mks=['rry','rrx','mle'],mclrs=[C.am,C.bl,C.gr];
+    lastResult.allResults.forEach((re,ri)=>{
+      const bg=ri%2===0?C.card:[22,27,36];fill(ML,y,CW,rowH-1,bg);
+      const vals=[{v:mks[ri].toUpperCase(),c:mclrs[ri]},{v:MM[mks[ri]].full,c:C.mu},{v:re.beta.toFixed(3),c:C.tx},{v:re.eta.toFixed(0),c:C.tx},{v:re.b10.toFixed(0),c:C.am},{v:re.b50.toFixed(0),c:C.tx},{v:(re.r2*100).toFixed(1)+'%',c:C.tx},{v:re.pB10===true?'PASS':re.pB10===false?'FAIL':'N/A',c:re.pB10===true?C.gr:re.pB10===false?C.rd:C.mu}];
+      cx=ML;vals.forEach((val,vi)=>{sf(6.5,'normal',val.c);doc.text(String(val.v),cx+2,y+5.2);cx+=cws[vi];});
+      doc.setDrawColor(...C.bdr);doc.setLineWidth(.15);doc.line(ML,y+rowH-1,ML+CW,y+rowH-1);y+=rowH;
+    });
+    doc.setDrawColor(...C.bdr);doc.setLineWidth(.3);doc.rect(ML,y-lastResult.allResults.length*rowH-rowH,CW,(lastResult.allResults.length+1)*rowH,'S');y+=8;
+  } else {
+    const{beta,eta,b10,b50,r2,pInd,pB10,minF,reqInd,reqB10,vTitle,vClass,betaI}=lastResult;
+    const vc=vClass==='pass-both'?C.gr:vClass==='pass-b10'?C.am:vClass==='fail'?C.rd:C.mu;
+    const vbg=vc.map(c=>Math.min(255,Math.round(c*.12+C.card[0]*.88)));
+    fill(ML,y,CW,13,vbg);doc.setDrawColor(...vc);doc.setLineWidth(.4);doc.rect(ML,y,CW,13,'S');
+    doc.setFillColor(...vc);doc.rect(ML,y,2.5,13,'F');
+    sf(9,'bold',vc);doc.text(vTitle,ML+6,y+8.5);y+=17;
+    const kw=(CW-9)/4;
+    [{l:'B10 LIFE',v:fmt1k(b10),s:b10.toFixed(0)+' cycles',hi:true},{l:'B50 MEDIAN',v:fmt1k(b50),s:b50.toFixed(0)+' cycles',hi:false},{l:'WEIBULL β',v:beta.toFixed(3),s:'shape parameter',hi:false},{l:'R² FIT',v:(r2*100).toFixed(1)+'%',s:r2>.95?'excellent':'good fit',hi:false}].forEach((k,i)=>{
+      const kx=ML+i*(kw+3);fill(kx,y,kw,19,k.hi?[61,45,8]:C.card);
+      doc.setDrawColor(...(k.hi?C.am:C.bdr));doc.setLineWidth(.35);doc.rect(kx,y,kw,19,'S');
+      sf(6,'bold',C.mu);doc.text(k.l,kx+4,y+5.5);sf(10,'bold',k.hi?C.am:C.tx);doc.text(k.v,kx+4,y+13);sf(5.5,'normal',C.mu);doc.text(k.s,kx+4,y+18);
+    });y+=25;
+    if(reqInd>0||reqB10>0){
+      const rw=reqInd>0&&reqB10>0?(CW-6)/2:CW;
+      const reqs=[];if(reqInd>0)reqs.push({t:'INDIVIDUAL MINIMUM',v:minF.toLocaleString(),r:reqInd.toLocaleString(),p:pInd});if(reqB10>0)reqs.push({t:'B10 REQUIREMENT',v:b10.toFixed(0).toLocaleString(),r:reqB10.toLocaleString(),p:pB10});
+      reqs.forEach((req,i)=>{const rx=ML+i*(rw+6);const pc=req.p?C.gr:C.rd;fill(rx,y,rw,16,req.p?[6,40,24]:[50,10,10]);doc.setDrawColor(...pc);doc.setLineWidth(.4);doc.rect(rx,y,rw,16,'S');doc.setFillColor(...pc);doc.rect(rx,y,2.5,16,'F');sf(6.5,'bold',C.lb);doc.text(req.t,rx+6,y+5.5);sf(8,'bold',pc);doc.text(req.p?'PASS':'FAIL',rx+rw-4,y+5.5,{align:'right'});sf(8,'bold',C.tx);doc.text(req.v+' cycles',rx+6,y+12);sf(5.5,'normal',C.mu);doc.text('Required: '+req.r+' cycles',rx+6,y+15.5);});y+=22;
+    }
+    sf(7,'bold',C.am);doc.text('WEIBULL PARAMETERS',ML,y+4);ln(ML,y+5.5,W-MR_,y+5.5,C.bdr);y+=9;
+    const pw=(CW-6)/3;
+    [{sym:'β',name:'Shape',val:beta.toFixed(4),int:betaI},{sym:'η',name:'Char. Life',val:eta.toFixed(0)+' cyc',int:'63.2% failure point'},{sym:'R²',name:'Fit quality',val:(r2*100).toFixed(2)+'%',int:r2>.95?'Strong fit':r2>.85?'Acceptable':'Weak'}].forEach((p,i)=>{
+      const px2=ML+i*(pw+3);fill(px2,y,pw,21,C.card);doc.setDrawColor(...C.bdr);doc.setLineWidth(.3);doc.rect(px2,y,pw,21,'S');
+      sf(13,'bold',C.bl);doc.text(p.sym,px2+4,y+11);sf(7,'bold',C.tx);doc.text(p.val,px2+4,y+17);sf(6,'normal',C.mu);doc.text(p.name,px2+4,y+5.5);
+      const ls=doc.splitTextToSize(p.int,pw-8);sf(5.5,'normal',C.mu);ls.forEach((l2,li)=>doc.text(l2,px2+4,y+20+li*4));
+    });y+=30;
+  }
+  // Canvas plot
+  const canvas=document.getElementById('weibullCanvas');
+  if(canvas){const img=canvas.toDataURL('image/png');const pH=52;fill(ML,y,CW,pH+8,C.card);doc.setDrawColor(...C.bdr);doc.setLineWidth(.3);doc.rect(ML,y,CW,pH+8,'S');fill(ML,y,CW,7,C.sur);ln(ML,y+7,ML+CW,y+7,C.bdr,.3);sf(6.5,'bold',C.am);doc.text('WEIBULL PROBABILITY PLOT',ML+4,y+5);doc.addImage(img,'PNG',ML+2,y+8,CW-4,pH);y+=pH+14;}
+  fill(0,285,W,12,C.sur);ln(0,285,W,285,C.bdr,.3);
+  sf(6,'normal',C.mu);doc.text('B10 Weibull Life Calculator  |  Two-parameter Weibull fatigue analysis',ML,292);
+  doc.text(`Generated ${ds}`,W-MR_,292,{align:'right'});
+  doc.save(`B10_Weibull_Report_${ds}.pdf`);
+}
+
+// ─── Export Excel ─────────────────────────────────────────────
+function exportExcel(){
+  if(!lastResult)return;
+  const now=new Date(),ds=now.toLocaleDateString('en-CA');
+  const wb=XLSX.utils.book_new();
+  const{n,r,reqInd,reqB10,pInd,minF}=lastResult;
+  const aoa=[];
+  aoa.push(['B10 WEIBULL LIFE ANALYSIS']);
+  aoa.push([`Generated: ${ds}   n=${n}, r=${r}   Method: ${lastResult.method==='all'?'Compare All':MM[lastResult.method]?.full||''}`]);
+  aoa.push([]);
+  if(lastResult.allResults){
+    aoa.push(['METHOD COMPARISON']);
+    aoa.push(['Method','Full Name','β','η (cycles)','B10 (cycles)','B50 (cycles)','R² (%)','Req. B10','Pass/Fail']);
+    const mks=['rry','rrx','mle'];
+    lastResult.allResults.forEach((re,i)=>aoa.push([mks[i].toUpperCase(),MM[mks[i]].full,+re.beta.toFixed(4),+re.eta.toFixed(0),+re.b10.toFixed(0),+re.b50.toFixed(0),+(re.r2*100).toFixed(2),reqB10||'',re.pB10===true?'PASS':re.pB10===false?'FAIL':'N/A']));
+    aoa.push([]);
+  } else {
+    const{beta,eta,b10,b50,r2}=lastResult;
+    aoa.push(['WEIBULL PARAMETERS']);
+    aoa.push(['β',+beta.toFixed(4),'Shape — failure mode indicator']);
+    aoa.push(['η',+eta.toFixed(0),'Characteristic life (cycles) — 63.2% failure point']);
+    aoa.push(['B10',+b10.toFixed(0),'10th percentile life (cycles)']);
+    aoa.push(['B50',+b50.toFixed(0),'50th percentile / median life (cycles)']);
+    aoa.push(['R²',+(r2*100).toFixed(2),'Weibull fit quality (%)']);
+    aoa.push([]);
+  }
+  aoa.push(['SAMPLE DATA']);
+  aoa.push(['Sample #','Cycles','Status','Ind. Min Req','Ind. Min Result','B10 Req','Notes']);
+  const b10ref=lastResult.allResults?lastResult.allResults[0].b10:lastResult.b10;
+  samples.forEach((s,i)=>{const ir=reqInd>0&&s.failed?(s.cycles>=reqInd?'PASS':'FAIL'):'';aoa.push([i+1,s.cycles,s.failed?'Failed':'Suspended',reqInd||'',ir,i===0&&reqB10?reqB10:'','']);});
+  aoa.push([]);
+  if(reqInd>0)aoa.push(['Ind. Min Check','Min actual:',minF,'Required:',reqInd,'Result:',pInd?'PASS':'FAIL']);
+  aoa.push([]);
+  aoa.push(['Method notes: RRY minimises Y-residuals; RRX minimises X-residuals (ReliaSoft default); MLE: Newton-Raphson likelihood maximisation. B10 = eta*(-ln(0.9))^(1/beta).']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:14},{wch:36},{wch:14},{wch:16},{wch:16},{wch:16},{wch:14},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'Weibull Results');
+  // DVP&R sheet
+  const aoa2=[];aoa2.push(['B10 Weibull — DVP&R Data Table']);aoa2.push([`Date: ${ds}`]);aoa2.push([]);
+  aoa2.push(['Sample #','Cycles','Status','Ind. Min Req','Ind. Min Pass/Fail','B10 Req','B10 Estimated','B10 Pass/Fail']);
+  const passB10ref=reqB10>0?b10ref>=reqB10:null;
+  samples.forEach((s,i)=>{const ir=reqInd>0&&s.failed?(s.cycles>=reqInd?'PASS':'FAIL'):'';aoa2.push([i+1,s.cycles,s.failed?'Failed':'Suspended',reqInd||'',ir,i===0&&reqB10?reqB10:'',i===0?+b10ref.toFixed(0):'',i===0&&reqB10?(passB10ref?'PASS':'FAIL'):'']);});
+  const ws2=XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!cols']=[{wch:12},{wch:14},{wch:14},{wch:14},{wch:16},{wch:12},{wch:18},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws2,'DVP&R Paste');
+  XLSX.writeFile(wb,`B10_Weibull_Data_${ds}.xlsx`);
+}
+
+// ─── Reset ────────────────────────────────────────────────────
+function resetForm(){
+  samples=[{cycles:41200,failed:true},{cycles:38700,failed:true},{cycles:52100,failed:true},{cycles:44500,failed:true},{cycles:39800,failed:true},{cycles:47300,failed:true}];
+  document.getElementById('reqIndividual').value='25500';
+  document.getElementById('reqB10').value='36500';
+  renderGrid();
+  document.getElementById('pdfBtn').disabled=true;
+  document.getElementById('xlsxBtn').disabled=true;
+  lastResult=null;
+  document.getElementById('resultsPanel').innerHTML='<div class="placeholder"><div class="placeholder-icon">📈</div><p>Select a Weibull method, enter sample data and OEM requirements, then click <strong>Calculate</strong>.</p></div>';
+}
+
+function toggleRefs(){
+  const p=document.getElementById('refPanel');
+  const c=document.getElementById('refChevron');
+  const open=p.style.display==='none'||p.style.display==='';
+  p.style.display=open?'flex':'none';
+  c.textContent=open?'▲':'▼';
+}
+renderGrid();
+renderMethodOpts();
+</script>
+</body>
+</html>
