@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bearing L10 Life Calculator — ISO 281</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0f12;
+    --surface:   #13171d;
+    --card:      #191e26;
+    --border:    #252c38;
+    --border-hi: #2e3a4e;
+    --accent:    #3b82f6;
+    --accent-dim:#1e3a5f;
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --amber:     #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --label:     #94a3b8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .header-text h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px; font-weight: 600;
+    color: var(--text); letter-spacing: 0.02em;
+  }
+  .header-text p {
+    font-size: 12px; color: var(--muted); margin-top: 2px;
+  }
+  .badge {
+    margin-left: auto;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 81px);
+  }
+
+  /* ── Sidebar inputs ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 24px;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    color: var(--accent); letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  .field label {
+    font-size: 12px; color: var(--label); font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .field label span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    background: var(--border); padding: 1px 6px; border-radius: 3px;
+  }
+
+  input[type="number"], select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    width: 100%;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type="number"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  select option { background: var(--card); }
+
+  .field-hint {
+    font-size: 11px; color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .bearing-type-group {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .type-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--label);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 10px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .type-btn:hover { border-color: var(--border-hi); color: var(--text); }
+  .type-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .type-btn .exp {
+    display: block; font-size: 10px; color: var(--muted); margin-top: 2px;
+  }
+  .type-btn.active .exp { color: var(--accent); opacity: 0.7; }
+
+  .calc-btn {
+    background: var(--accent);
+    border: none; border-radius: 6px;
+    color: #fff; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; font-weight: 600;
+    padding: 12px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .calc-btn:hover { background: #2563eb; }
+  .calc-btn:active { transform: scale(0.98); }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    padding: 9px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { border-color: var(--border-hi); color: var(--label); }
+
+  /* ── Results panel ── */
+  .results {
+    padding: 28px 32px;
+    display: flex; flex-direction: column; gap: 24px;
+    overflow-y: auto;
+  }
+
+  /* Verdict banner */
+  .verdict {
+    border-radius: 10px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    border: 1px solid;
+    transition: all 0.3s;
+  }
+  .verdict.pass { background: rgba(34,197,94,0.08); border-color: var(--green); }
+  .verdict.fail { background: rgba(239,68,68,0.08); border-color: var(--red); }
+  .verdict.neutral { background: var(--card); border-color: var(--border); }
+  .verdict-icon { font-size: 28px; flex-shrink: 0; }
+  .verdict-text h2 { font-size: 16px; font-weight: 600; }
+  .verdict-text p { font-size: 12px; color: var(--label); margin-top: 3px; }
+  .verdict.pass .verdict-text h2 { color: var(--green); }
+  .verdict.fail .verdict-text h2 { color: var(--red); }
+  .verdict.neutral .verdict-text h2 { color: var(--muted); }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .kpi-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px; font-weight: 600;
+    color: var(--text); line-height: 1;
+  }
+  .kpi-unit {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+  }
+  .kpi.highlight { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+  .kpi.highlight .kpi-value { color: var(--accent); }
+
+  /* Calc chain */
+  .chain-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .chain-header {
+    background: var(--surface);
+    padding: 12px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    color: var(--accent); letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .chain-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .chain-step {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .step-num {
+    width: 22px; height: 22px; flex-shrink: 0;
+    background: var(--border);
+    border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-content { flex: 1; }
+  .step-desc { font-size: 12px; color: var(--label); margin-bottom: 4px; }
+  .step-formula {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+  }
+  .step-formula .val { color: var(--accent); }
+
+  /* Life bar */
+  .life-bar-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+  }
+  .life-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--label); margin-bottom: 10px;
+  }
+  .life-bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px; overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .life-bar-fill {
+    height: 100%; width: 0%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .life-bar-fill.good { background: linear-gradient(90deg, #22c55e, #4ade80); }
+  .life-bar-fill.warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .life-bar-fill.bad  { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .life-bar-note { font-size: 11px; color: var(--muted); }
+
+  /* placeholder state */
+  .placeholder {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; color: var(--muted);
+    text-align: center; padding: 40px;
+  }
+  .placeholder-icon { font-size: 48px; opacity: 0.3; }
+  .placeholder p { font-size: 13px; line-height: 1.6; max-width: 260px; }
+
+  /* responsive */
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-icon">⚙️</div>
+  <div class="header-text">
+    <h1>Bearing L10 Life Calculator</h1>
+    <p>ISO 281 — Fatigue life estimation for rolling element bearings</p>
+  </div>
+  <div class="badge">ISO 281</div>
+</div>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <div>
+      <div class="section-label">Bearing Type</div>
+      <div style="margin-top:14px;">
+        <div class="bearing-type-group">
+          <button class="type-btn active" onclick="setBearingType('ball', this)">
+            Ball Bearing
+            <span class="exp">p = 3.00</span>
+          </button>
+          <button class="type-btn" onclick="setBearingType('roller', this)">
+            Roller Bearing
+            <span class="exp">p = 3.33</span>
+          </button>
+        </div>
+        <p class="field-hint" style="margin-top:8px;">Ball = DGBB, angular contact. Roller = tapered, cylindrical, spherical.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Bearing Loads</div>
+      <div style="display:flex; flex-direction:column; gap:14px; margin-top:14px;">
+
+        <div class="field">
+          <label>Dynamic Load Rating (C) <span>kN</span></label>
+          <input type="number" id="C" value="22.5" min="0.1" step="0.1" placeholder="from bearing catalog">
+          <p class="field-hint">Found in bearing catalog (SKF, NSK, Timken, etc.) for your selected bearing number.</p>
+        </div>
+
+        <div class="field">
+          <label>Applied Equivalent Load (P) <span>kN</span></label>
+          <input type="number" id="P" value="2.1" min="0.01" step="0.1" placeholder="from FBD">
+          <p class="field-hint">Resultant radial + axial load from your force balance diagram.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Operating Conditions</div>
+      <div style="display:flex; flex-direction:column; gap:14px; margin-top:14px;">
+
+        <div class="field">
+          <label>Rotational Speed (n) <span>RPM</span></label>
+          <input type="number" id="RPM" value="3800" min="1" step="10" placeholder="shaft speed">
+        </div>
+
+        <div class="field">
+          <label>Required Design Life <span>hours</span></label>
+          <input type="number" id="reqLife" value="5475" min="0" step="100" placeholder="target life hrs">
+          <p class="field-hint">Warranty target or OEM requirement. Leave 0 to skip pass/fail check.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">Calculate L10 Life</button>
+    <button class="reset-btn" onclick="resetForm()">Reset to Defaults</button>
+
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div class="results" id="resultsPanel">
+
+    <div class="placeholder" id="placeholderMsg">
+      <div class="placeholder-icon">🔩</div>
+      <p>Enter bearing parameters and click <strong>Calculate</strong> to see the L10 fatigue life analysis.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let bearingExponent = 3.0; // ball bearing default
+
+  function setBearingType(type, btn) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    bearingExponent = (type === 'ball') ? 3.0 : (10/3);
+  }
+
+  function calculate() {
+    const C = parseFloat(document.getElementById('C').value);
+    const P = parseFloat(document.getElementById('P').value);
+    const n = parseFloat(document.getElementById('RPM').value);
+    const reqLife = parseFloat(document.getElementById('reqLife').value) || 0;
+    const p = bearingExponent;
+
+    // Validation
+    if (isNaN(C) || isNaN(P) || isNaN(n) || C <= 0 || P <= 0 || n <= 0) {
+      alert('Please enter valid positive values for C, P, and RPM.');
+      return;
+    }
+    if (P >= C) {
+      alert('Warning: Applied load P equals or exceeds dynamic load rating C. Bearing will have very short life.');
+    }
+
+    // ── Core calculation ──
+    const ratio = C / P;
+    const L10_Mrev = Math.pow(ratio, p);                           // millions of revolutions
+    const L10_hours = (L10_Mrev * 1e6) / (60 * n);                // operating hours
+
+    // Safety factor (life ratio vs requirement)
+    let safetyFactor = reqLife > 0 ? L10_hours / reqLife : null;
+    let verdict = 'neutral', verdictIcon = '📊', verdictTitle = 'Calculated', verdictSub = 'No requirement entered for pass/fail check.';
+
+    if (safetyFactor !== null) {
+      if (safetyFactor >= 1.0) {
+        verdict = 'pass'; verdictIcon = '✅';
+        verdictTitle = `PASS — Safety Factor ${safetyFactor.toFixed(2)}×`;
+        verdictSub = `L10 life (${L10_hours.toFixed(0).toLocaleString()} hrs) exceeds requirement (${reqLife.toLocaleString()} hrs)`;
+      } else {
+        verdict = 'fail'; verdictIcon = '❌';
+        verdictTitle = `FAIL — Safety Factor ${safetyFactor.toFixed(2)}×`;
+        verdictSub = `L10 life (${L10_hours.toFixed(0).toLocaleString()} hrs) is below requirement (${reqLife.toLocaleString()} hrs)`;
+      }
+    }
+
+    // Bar fill %
+    let barPct = 0, barClass = 'good';
+    if (reqLife > 0) {
+      barPct = Math.min((L10_hours / reqLife) * 100, 200);
+      barClass = safetyFactor >= 1.2 ? 'good' : (safetyFactor >= 1.0 ? 'warn' : 'bad');
+    } else {
+      barPct = Math.min((ratio / 20) * 100, 100);
+      barClass = ratio >= 10 ? 'good' : (ratio >= 5 ? 'warn' : 'bad');
+    }
+
+    const pLabel = p === 3.0 ? '3.00 (ball)' : '3.33 (roller)';
+
+    // ── Build HTML ──
+    const panel = document.getElementById('resultsPanel');
+    panel.innerHTML = `
+
+      <!-- Verdict -->
+      <div class="verdict ${verdict}">
+        <div class="verdict-icon">${verdictIcon}</div>
+        <div class="verdict-text">
+          <h2>${verdictTitle}</h2>
+          <p>${verdictSub}</p>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-label">C / P Ratio</div>
+          <div class="kpi-value">${ratio.toFixed(2)}</div>
+          <div class="kpi-unit">dimensionless</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">L10 Life</div>
+          <div class="kpi-value">${formatMrev(L10_Mrev)}</div>
+          <div class="kpi-unit">million revolutions</div>
+        </div>
+        <div class="kpi highlight">
+          <div class="kpi-label">L10 Life</div>
+          <div class="kpi-value">${L10_hours >= 1000 ? (L10_hours/1000).toFixed(1)+'k' : L10_hours.toFixed(0)}</div>
+          <div class="kpi-unit">operating hours</div>
+        </div>
+      </div>
+
+      <!-- Life bar vs requirement -->
+      ${reqLife > 0 ? `
+      <div class="life-bar-wrap">
+        <div class="life-bar-label">
+          <span>L10 Life vs Requirement</span>
+          <span>${L10_hours.toFixed(0)} hrs / ${reqLife} hrs required</span>
+        </div>
+        <div class="life-bar-track">
+          <div class="life-bar-fill ${barClass}" id="lifeBar" style="width:0%"></div>
+        </div>
+        <div class="life-bar-note">
+          ${safetyFactor >= 1.0
+            ? `✓ ${((safetyFactor-1)*100).toFixed(0)}% margin above requirement`
+            : `✗ ${((1-safetyFactor)*100).toFixed(0)}% below requirement — upsize bearing or reduce load`}
+        </div>
+      </div>` : ''}
+
+      <!-- Calculation chain -->
+      <div class="chain-card">
+        <div class="chain-header">Calculation Chain — ISO 281</div>
+        <div class="chain-body">
+
+          <div class="chain-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-desc">Load ratio (C/P)</div>
+              <div class="step-formula">C/P = <span class="val">${C}</span> / <span class="val">${P}</span> = <span class="val">${ratio.toFixed(4)}</span></div>
+            </div>
+          </div>
+
+          <div class="chain-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-desc">L10 in millions of revolutions — exponent p = ${pLabel}</div>
+              <div class="step-formula">L10 = (C/P)^p = (<span class="val">${ratio.toFixed(4)}</span>)^<span class="val">${p.toFixed(2)}</span> = <span class="val">${L10_Mrev.toFixed(2)}</span> Mrev</div>
+            </div>
+          </div>
+
+          <div class="chain-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-desc">Convert to operating hours</div>
+              <div class="step-formula">L10h = (L10 × 10⁶) / (60 × n) = (<span class="val">${L10_Mrev.toFixed(2)}</span> × 10⁶) / (60 × <span class="val">${n}</span>) = <span class="val">${L10_hours.toFixed(1)}</span> hrs</div>
+            </div>
+          </div>
+
+          ${reqLife > 0 ? `
+          <div class="chain-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <div class="step-desc">Compare vs requirement</div>
+              <div class="step-formula">SF = L10h / Req = <span class="val">${L10_hours.toFixed(1)}</span> / <span class="val">${reqLife}</span> = <span class="val">${safetyFactor.toFixed(3)}</span> ${safetyFactor >= 1.0 ? '✓ PASS' : '✗ FAIL'}</div>
+            </div>
+          </div>` : ''}
+
+        </div>
+      </div>
+
+      <!-- Reference note -->
+      <div style="font-size:11px; color:var(--muted); padding:4px 0; line-height:1.6; border-top:1px solid var(--border); padding-top:12px;">
+        <strong style="color:var(--label)">Note:</strong> Basic L10 per ISO 281 without life modification factors (a₁ reliability, a_ISO lubrication/contamination). For final design release, apply these factors. C from bearing catalog at rated reliability. P = X·Fr + Y·Fa for combined loading.
+      </div>
+    `;
+
+    // Animate bar
+    if (reqLife > 0) {
+      setTimeout(() => {
+        const bar = document.getElementById('lifeBar');
+        if (bar) bar.style.width = Math.min(barPct, 100) + '%';
+      }, 50);
+    }
+  }
+
+  function formatMrev(v) {
+    if (v >= 1000) return (v/1000).toFixed(1) + 'k';
+    if (v >= 100) return v.toFixed(0);
+    return v.toFixed(1);
+  }
+
+  function resetForm() {
+    document.getElementById('C').value = '22.5';
+    document.getElementById('P').value = '2.1';
+    document.getElementById('RPM').value = '3800';
+    document.getElementById('reqLife').value = '5475';
+    bearingExponent = 3.0;
+    document.querySelectorAll('.type-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.getElementById('resultsPanel').innerHTML = `
+      <div class="placeholder" id="placeholderMsg">
+        <div class="placeholder-icon">🔩</div>
+        <p>Enter bearing parameters and click <strong>Calculate</strong> to see the L10 fatigue life analysis.</p>
+      </div>`;
+  }
+</script>
+</body>
+</html>
